@@ -306,7 +306,7 @@ function normDB(d){
 }
 
 var DB=freshDB();
-var CFG_MISSING=false,FIRE=null,AUTH='boot',UID=null,UNSUB=null,USER_EMAIL='',SAVE_TIMER=null,SYNC_WATCH=null;
+var CFG_MISSING=false,FIRE=null,AUTH='boot',UID=null,UNSUB=null,USER_EMAIL='',SAVE_TIMER=null,SYNC_WATCH=null,_dirty=false;
 
 function initFire(){
   try{
@@ -320,9 +320,10 @@ function initFire(){
 function save(){
   try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
   if(!FIRE||!FIRE.docRef)return;
+  _dirty=true;
   clearTimeout(SAVE_TIMER);
   SAVE_TIMER=setTimeout(function(){
-    FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){clearBanner();}).catch(function(e){
+    FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){_dirty=false;clearBanner();}).catch(function(e){
       showBanner('تعذر رفع التعديلات للسحابة — سيُعاد المحاولة. تأكد من النت','err');
       clearTimeout(SAVE_TIMER);
       SAVE_TIMER=setTimeout(save,4000);
@@ -333,7 +334,8 @@ function saveNow(){
   try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
   if(!FIRE||!FIRE.docRef)return Promise.resolve();
   clearTimeout(SAVE_TIMER);
-  return FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){clearBanner();}).catch(function(e){
+  _dirty=true;
+  return FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){_dirty=false;clearBanner();}).catch(function(e){
     showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بجوالك حالياً فقط','err');
   });
 }
@@ -726,6 +728,7 @@ function attachSync(){
   },function(){
     clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
     showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بهذا الجوال فقط','err');
+    setTimeout(function(){if(AUTH==='ready')attachSync();},5000);
   });
 }
 function syncNow(){
@@ -1022,6 +1025,8 @@ document.getElementById('backBtn').innerHTML=I.back;
 function boot(){
   window.addEventListener('error',function(ev){showBanner('حصل خطأ تقني — صوّر الرسالة وخبّرنا: '+(ev.message||'غير معروف'),'err');});
   window.addEventListener('online',function(){syncNow();});
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&_dirty)saveNow();});
+  setInterval(function(){if(AUTH==='ready'&&_dirty)saveNow();},15000);
   initFire();
   if(!CFG_MISSING){
     onAuthStateChanged(FIRE.auth,function(user){
