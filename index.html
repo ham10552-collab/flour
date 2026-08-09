@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>دفتر الطحين</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --primary:#8A5A1F; --surface:#FAF6EF; --card:#fff; --gold:#C9A227;
+  --green:#2E7D32; --red:#C62828; --text:#3E2E12; --muted:#8a7a5f; --line:#E4D8C0;
+  --dark1:#1A1D29; --dark2:#2A2E3F;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--surface); color:var(--text);
+  font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  font-size:15px; line-height:1.5;
+}
+header{
+  position:sticky; top:0; z-index:30; background:var(--surface);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 10px; border-bottom:1px solid var(--line);
+}
+header h1{font-size:19px; font-weight:800; margin:0; letter-spacing:.2px}
+#hdrBtns{display:flex; align-items:center}
+.icon-btn{
+  background:none; border:none; color:var(--text); cursor:pointer;
+  width:42px; height:42px; border-radius:12px; display:flex;
+  align-items:center; justify-content:center;
+}
+.icon-btn:hover{background:rgba(138,90,31,.08)}
+.icon-btn svg{display:block}
+main{max-width:760px; margin:0 auto; padding:14px 14px 110px}
+.hidden{display:none !important}
+
+.card{
+  background:var(--card); border:1px solid var(--line);
+  border-radius:16px; padding:14px;
+}
+.card+.card{margin-top:10px}
+
+.chips{display:flex; gap:8px; overflow-x:auto; padding:6px 2px 10px; scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:0 0 auto; padding:7px 18px; border-radius:999px; cursor:pointer;
+  background:#fff; border:1px solid var(--line); color:var(--text);
+  font-weight:800; font-size:14px; font-family:inherit;
+}
+.chip.sel{background:var(--primary); border-color:var(--primary); color:#fff}
+
+.banner{display:flex; align-items:center; gap:10px}
+.banner .b-title{flex:1; font-weight:800}
+.banner .b-sacks{font-weight:800}
+.banner svg{color:var(--primary); flex:none}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:10px; margin-top:12px}
+@media (max-width:480px){.grid{grid-template-columns:repeat(3,1fr)}}
+.mtile{cursor:pointer; display:flex; flex-direction:column; min-height:128px; padding:11px}
+.mtile .ic{
+  width:34px; height:34px; border-radius:9px; display:flex; align-items:center;
+  justify-content:center; color:#fff; background:var(--gold);
+}
+.mtile .ic.off{background:#eee; color:#bdbdbd}
+.mtile .sp{flex:1}
+.mtile .m-name{font-weight:800; font-size:15px}
+.mtile .m-sub{font-size:12px; color:var(--muted)}
+.mtile .m-note{font-size:11px; color:var(--muted)}
+
+.stats{display:flex; gap:10px; margin:4px 0 12px}
+.stat{flex:1; background:#fff; border:1px solid var(--line); border-radius:16px; padding:11px}
+.stat .lbl{font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:5px; font-weight:600}
+.stat .val{font-size:16px; font-weight:800; margin-top:3px}
+
+.tile{background:#fff; border:1px solid var(--line); border-radius:16px; padding:12px 13px; cursor:pointer}
+.tile+.tile{margin-top:10px}
+.trow{display:flex; align-items:center; gap:10px}
+.trow .grow{flex:1; min-width:0}
+.tname{font-size:15.5px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tsub{font-size:12px; color:var(--muted)}
+.avatar{
+  width:38px; height:38px; border-radius:50%; flex:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.avatar.gold{background:rgba(201,162,39,.15); color:var(--gold)}
+.avatar.brown{background:rgba(138,90,31,.1); color:var(--primary)}
+.mini{width:22px; height:22px; border-radius:9px; border:none; cursor:pointer; background:none; color:var(--muted); display:flex; align-items:center; justify-content:center; flex:none}
+.mini:hover{background:rgba(0,0,0,.06)}
+.mini.danger:hover{color:var(--red)}
+
+.pill{
+  display:inline-flex; align-items:center; gap:5px; padding:5px 11px;
+  border-radius:999px; font-size:11.5px; font-weight:800; cursor:pointer; border:1.2px solid; flex:none;
+}
+.pill.on{background:rgba(46,125,50,.12); color:var(--green); border-color:var(--green)}
+.pill.off{background:rgba(198,40,40,.10); color:var(--red); border-color:var(--red)}
+
+.div{height:1px; background:#f0e9dc; margin:10px 0}
+.info{display:flex; gap:6px; margin-top:10px}
+.info .cell{flex:1; min-width:0}
+.info .lbl{font-size:11px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:4px}
+.info .lbl svg{color:var(--muted)}
+.info .val{font-size:12.5px; font-weight:700; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.lastline{font-size:11px; color:var(--muted); margin-top:7px}
+
+.profit{font-weight:800; white-space:nowrap}
+.profit.pos{color:var(--green)}
+.profit.neg{color:var(--red)}
+.profit.neutral{color:var(--text)}
+
+.grand{
+  margin-top:12px; padding:16px; border-radius:16px; color:#fff;
+  background:linear-gradient(135deg,var(--dark1),var(--dark2));
+}
+.grand .g-title{display:flex; align-items:center; gap:8px; font-weight:800; font-size:15px; color:var(--gold)}
+.grand .g-row{display:flex; gap:10px; margin-top:12px}
+.grand .g-cell{flex:1}
+.grand .g-lbl{font-size:11px; color:rgba(255,255,255,.75); font-weight:600}
+.grand .g-val{font-size:14px; font-weight:800; margin-top:2px}
+
+.fab{
+  position:fixed; bottom:20px; left:20px; z-index:40;
+  background:var(--primary); color:#fff; border:none; border-radius:16px;
+  padding:15px 20px; font-size:15px; font-weight:800; font-family:inherit;
+  display:flex; align-items:center; gap:8px; cursor:pointer;
+  box-shadow:0 6px 20px rgba(138,90,31,.35);
+}
+.empty{text-align:center; padding:60px 20px; color:var(--muted)}
+.empty .e-ic{color:var(--gold); margin-bottom:10px}
+.empty .e-t{font-size:16px; font-weight:800; color:var(--text)}
+.empty .e-s{font-size:13px; margin-top:4px}
+
+.chipbox{display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px; background:#f4f0e7; font-size:12px; font-weight:700; color:var(--text)}
+.chipbox.gold{background:rgba(46,125,50,.12); color:var(--green)}
+.chipbox.silver{background:rgba(198,40,40,.10); color:var(--red)}
+.tx-chips{display:flex; flex-wrap:wrap; gap:7px; margin-top:9px}
+
+.report{border:none; padding:0; overflow:hidden}
+.report>summary{list-style:none; display:flex; align-items:center; gap:10px; padding:13px; cursor:pointer}
+.report>summary::-webkit-details-marker{display:none}
+.report>summary .badge{width:34px; height:34px; border-radius:50%; background:rgba(201,162,39,.15); color:var(--gold); font-weight:800; display:flex; align-items:center; justify-content:center; flex:none}
+.r-title{font-weight:800}
+.r-sub{font-size:12px; color:var(--muted)}
+.report .rep-body{padding:0 13px 10px; border-top:1px solid var(--line)}
+.mill-sec{padding:10px 0 2px}
+.mill-sec summary{list-style:none; display:flex; align-items:center; gap:10px; cursor:pointer; padding:4px 0}
+.mill-sec summary::-webkit-details-marker{display:none}
+.mill-sec .m-name{font-weight:700; font-size:14px}
+.mill-sec .m-sub{font-size:12px; color:var(--muted)}
+.agent-row{display:flex; align-items:center; gap:10px; padding:6px 4px}
+.agent-row .a-name{flex:1; font-size:13.5px}
+.rep-body .r-h{display:flex; align-items:center; gap:8px; padding:3px 0}
+
+.overlay{position:fixed; inset:0; z-index:60; display:flex; align-items:flex-end; justify-content:center}
+.overlay.center{align-items:center}
+.backdrop{position:absolute; inset:0; background:rgba(30,25,15,.45)}
+.sheet{
+  position:relative; width:100%; max-width:760px; max-height:92vh; overflow-y:auto;
+  background:var(--surface); border-radius:20px 20px 0 0; padding:14px 16px 24px;
+  animation:up .18s ease-out;
+}
+@keyframes up{from{transform:translateY(30px);opacity:.5}to{transform:none;opacity:1}}
+.sheet-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
+.sheet-head h3{margin:0; font-size:17px; font-weight:800}
+.dialog{
+  position:relative; width:calc(100% - 40px); max-width:380px;
+  background:#fff; border-radius:18px; padding:20px; animation:up .15s ease-out;
+}
+.dialog h3{margin:0 0 6px; font-size:16.5px}
+.dialog p{margin:0 0 18px; color:#5c5240; font-size:14px}
+.dbtn-row{display:flex; gap:10px; justify-content:flex-end}
+.btn{
+  border:none; border-radius:12px; padding:11px 20px; font-size:14.5px; font-weight:800;
+  font-family:inherit; cursor:pointer;
+}
+.btn.primary{background:var(--primary); color:#fff}
+.btn.ghost{background:#f1ece1; color:var(--text)}
+.btn.danger{background:var(--red); color:#fff}
+.btn:active{opacity:.85}
+.btn-block{width:100%; margin-top:9px}
+.btn.link{background:none; color:var(--primary); text-decoration:underline; width:100%; margin-top:6px; padding:8px}
+
+.field{display:block; margin-bottom:13px}
+.field>span{display:block; font-size:12.5px; font-weight:700; color:#6b5e45; margin-bottom:5px}
+.field input, .field textarea{
+  width:100%; border:1px solid var(--line); border-radius:13px; background:#fff;
+  padding:11px 12px; font-size:15px; font-family:inherit; color:var(--text); outline:none;
+}
+.field input:focus,.field textarea:focus{border-color:var(--primary); box-shadow:0 0 0 2px rgba(138,90,31,.12)}
+.field textarea{resize:vertical; min-height:60px}
+input[type=date]{direction:ltr; text-align:right}
+.switch-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:#fff; border:1px solid var(--line); border-radius:13px; padding:11px 13px;
+  font-size:14px; font-weight:700; margin-top:4px; cursor:pointer;
+}
+.switch-row input{display:none}
+.switch-row .track{
+  width:46px; height:26px; border-radius:999px; background:#d8d0c0; position:relative; flex:none; transition:.15s;
+}
+.switch-row .track::after{
+  content:""; position:absolute; top:3px; right:3px; width:20px; height:20px; border-radius:50%;
+  background:#fff; transition:.15s; box-shadow:0 1px 3px rgba(0,0,0,.25);
+}
+.switch-row input:checked+.track{background:var(--green)}
+.switch-row input:checked+.track::after{right:23px}
+
+.menu{
+  position:fixed; top:54px; right:12px; z-index:50; background:#fff; border:1px solid var(--line);
+  border-radius:14px; box-shadow:0 8px 26px rgba(60,45,15,.18); overflow:hidden; min-width:210px;
+}
+.menu-user{padding:11px 16px 7px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--line); word-break:break-all}
+.menu button{
+  display:block; width:100%; text-align:right; border:none; background:none; cursor:pointer;
+  padding:12px 16px; font-size:14px; font-family:inherit; color:var(--text); font-weight:600;
+}
+.menu button:hover{background:var(--surface)}
+
+#toast{
+  position:fixed; bottom:92px; left:50%; transform:translateX(-50%) translateY(20px); z-index:90;
+  background:#2b2417; color:#fff; padding:11px 20px; border-radius:999px; font-size:13.5px; font-weight:700;
+  opacity:0; pointer-events:none; transition:.2s; white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+@media (min-width:520px){ #toast{white-space:normal; text-align:center} }
+
+.auth-wrap{display:flex; justify-content:center; padding:9vh 16px; min-height:70vh}
+.auth-card{width:100%; max-width:400px; background:#fff; border:1px solid var(--line); border-radius:20px; padding:26px 22px; text-align:center}
+.auth-logo{
+  width:64px; height:64px; border-radius:18px; margin:0 auto 12px; color:#fff; background:var(--gold);
+  display:flex; align-items:center; justify-content:center;
+}
+.auth-card h2{margin:0 0 4px; font-size:21px}
+.auth-sub{color:var(--muted); font-size:13px; margin:0 0 18px}
+.auth-err{color:var(--red); font-size:13px; min-height:18px; margin:2px 0 4px; font-weight:600}
+.cfg-card{text-align:right}
+.cfg-card ol{margin:8px 0 0; padding-right:20px}
+.cfg-card li{margin-bottom:7px; font-size:13.5px; color:#5c5240}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="icon-btn hidden" id="backBtn"></button>
+  <h1 id="title">دفتر الطحين</h1>
+  <div id="hdrBtns">
+    <button class="icon-btn" id="reportBtn"></button>
+    <button class="icon-btn" id="menuBtn"></button>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<div id="menu" class="menu hidden"></div>
+<div id="sheetWrap" class="overlay hidden">
+  <div class="backdrop" id="sheetBack"></div>
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3 id="sheetTitle"></h3>
+      <button class="icon-btn" id="sheetClose"></button>
+    </div>
+    <form id="sheetForm"></form>
+  </div>
+</div>
+<div id="dialogWrap" class="overlay center hidden">
+  <div class="backdrop" id="dialogBack"></div>
+  <div class="dialog">
+    <h3 id="dlgTitle"></h3>
+    <p id="dlgMsg"></p>
+    <div class="dbtn-row">
+      <button class="btn ghost" id="dlgNo">إلغاء</button>
+      <button class="btn primary" id="dlgOk">حذف</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="firebase-config.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+var LS_CACHE='flour_cache_';
+var MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+function freshDB(){return {seq:0,currency:'د.ع',mills:[],agents:[],txs:[]};}
+function normDB(d){
+  if(typeof d.seq!=='number')d.seq=0;
+  if(typeof d.currency!=='string')d.currency='د.ع';
+  if(!Array.isArray(d.mills))d.mills=[];
+  if(!Array.isArray(d.agents))d.agents=[];
+  if(!Array.isArray(d.txs))d.txs=[];
+  return d;
+}
+
+var DB=freshDB();
+var CFG_MISSING=false,FIRE=null,AUTH='boot',UID=null,UNSUB=null,USER_EMAIL='',SAVE_TIMER=null;
+
+function initFire(){
+  try{
+    var cfg=window.FIREBASE_CONFIG;
+    if(!cfg||JSON.stringify(cfg).indexOf('YOUR_')>=0){CFG_MISSING=true;return;}
+    var app=initializeApp(cfg);
+    FIRE={auth:getAuth(app),db:getFirestore(app)};
+  }catch(e){CFG_MISSING=true;}
+}
+
+function save(){
+  try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
+  if(!FIRE||!FIRE.docRef)return;
+  clearTimeout(SAVE_TIMER);
+  SAVE_TIMER=setTimeout(function(){
+    FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).catch(function(){toast('تعذر الحفظ بالسحابة — تأكد من النت');});
+  },250);
+}
+function newId(){return ++DB.seq;}
+
+function pad(n){return n<10?'0'+n:''+n;}
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function fmtNum(v){v=Math.round(v*100)/100;return v.toLocaleString('en-US',{maximumFractionDigits:2});}
+function fmtSacks(v){return fmtNum(v)+' كيس';}
+function fmtMoney(v){return fmtNum(v)+' '+DB.currency;}
+function fmtDate(s){var p=String(s).split('-');return (+p[2])+' '+MONTHS[(+p[1])-1]+' '+p[0];}
+function monthName(m){return MONTHS[m-1];}
+function parsenum(v){if(v===null||v===undefined)return 0;var n=parseFloat(String(v).replace(/[^\d.]/g,''));return isNaN(n)?0:n;}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function txTotals(t){var c=t.sacks*t.buy,r=t.sacks*t.sell;return {sacks:t.sacks,cost:c,revenue:r,profit:r-c};}
+function sumTotals(list){var o={sacks:0,cost:0,revenue:0,profit:0};for(var i=0;i<list.length;i++){o.sacks+=list[i].sacks;o.cost+=list[i].cost;o.revenue+=list[i].revenue;o.profit+=list[i].profit;}return o;}
+
+function byName(a,b){return a.name.localeCompare(b.name,'ar');}
+function millById(id){for(var i=0;i<DB.mills.length;i++)if(DB.mills[i].id===id)return DB.mills[i];return null;}
+function agentById(id){for(var i=0;i<DB.agents.length;i++)if(DB.agents[i].id===id)return DB.agents[i];return null;}
+function years(){var s={};for(var i=0;i<DB.mills.length;i++)s[DB.mills[i].year]=1;return Object.keys(s).map(Number).sort(function(a,b){return a-b;});}
+function millsForPeriod(y,m){return DB.mills.filter(function(x){return x.year===y&&x.month===m;}).sort(byName);}
+function millsForYear(y){return DB.mills.filter(function(x){return x.year===y;}).sort(function(a,b){return a.month-b.month||byName(a,b);});}
+function agentsForMill(id){return DB.agents.filter(function(x){return x.millId===id;}).sort(byName);}
+function txsForAgent(id){return DB.txs.filter(function(x){return x.agentId===id;}).sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:b.id-a.id;});}
+function txsRowsForYear(y){
+  var am={},mm={},i;
+  for(i=0;i<DB.agents.length;i++)am[DB.agents[i].id]=DB.agents[i];
+  for(i=0;i<DB.mills.length;i++)mm[DB.mills[i].id]=DB.mills[i];
+  var rows=[];
+  for(i=0;i<DB.txs.length;i++){
+    var t=DB.txs[i],a=am[t.agentId]; if(!a)continue;
+    var m=mm[a.millId]; if(!m||m.year!==y)continue;
+    rows.push({t:t,a:a,m:m});
+  }
+  rows.sort(function(x,z){return x.m.month-z.m.month||byName(x.m,z.m)||byName(x.a,z.a)||(x.t.date<z.t.date?-1:x.t.date>z.t.date?1:0);});
+  return rows;
+}
+
+var I={
+  back:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
+  menu:'<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
+  close:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
+  del:'<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+  store:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l9-7 9 7v11"/><path d="M3 10h18"/><path d="M9 21v-6h6v6"/></svg>',
+  person:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.2-4 4.5-5.5 8-5.5s6.8 1.5 8 5.5"/></svg>',
+  sacks:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a9 9 0 01-18 0"/><path d="M3 8a9 9 0 0118 0"/><path d="M3 8c0 2 3 3 9 3s9-1 9-3"/></svg>',
+  cart:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2 3h3l2.6 12.6a2 2 0 002 1.4h8.7a2 2 0 002-1.6L22 7H6"/></svg>',
+  cash:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>',
+  truck:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="14" height="10" rx="1.5"/><path d="M15 8h4l4 4v3h-8z"/><circle cx="6.5" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>',
+  cal:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  receipt:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  summarize:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l5-4v17"/><path d="M4 21h17"/><path d="M9 8h11v13H9"/><path d="M11 12h4M11 16h4M11 20h7"/></svg>',
+  add:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  empty:'<svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l9-7 9 7v11"/><path d="M3 10h18"/><path d="M9 21v-6h6v6"/></svg>',
+  truck2:'<svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="14" height="10" rx="1.5"/><path d="M15 8h4l4 4v3h-8z"/><circle cx="6.5" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>',
+  reportic:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>'
+};
+
+var S={screen:'home',year:new Date().getFullYear(),month:1,millId:null,agentId:null};
+
+function go(screen,extra){for(var k in extra)S[k]=extra[k];S.screen=screen;render();window.scrollTo(0,0);}
+function goBack(){
+  if(S.screen==='month'||S.screen==='report')go('home');
+  else if(S.screen==='agents'){var m=millById(S.millId);if(m)go('month',{year:m.year,month:m.month});else go('home');}
+  else if(S.screen==='tx'){var a=agentById(S.agentId);if(a)go('agents',{millId:a.millId});else go('home');}
+}
+
+var MAIN=document.getElementById('main');
+
+function stat(lbl,val,ic){return '<div class="stat"><div class="lbl">'+ic+'<span>'+lbl+'</span></div><div class="val">'+val+'</div></div>';}
+function profitLabel(p){return '<span class="profit '+(p>0?'pos':p<0?'neg':'neutral')+'">'+fmtMoney(p)+'</span>';}
+function yearChips(sel){
+  var ys=years(),s={};s[sel]=1;s[new Date().getFullYear()]=1;
+  for(var i=0;i<ys.length;i++)s[ys[i]]=1;
+  var all=Object.keys(s).map(Number).sort(function(a,b){return a-b;});
+  var h='<div class="chips">';
+  for(i=0;i<all.length;i++)h+='<button class="chip'+(all[i]===sel?' sel':'')+'" data-act="year" data-year="'+all[i]+'">'+all[i]+'</button>';
+  return h+'</div>';
+}
+function emptyState(ic,t,s){return '<div class="empty"><div class="e-ic">'+ic+'</div><div class="e-t">'+t+'</div><div class="e-s">'+s+'</div></div>';}
+
+function homeHtml(){
+  var rows=txsRowsForYear(S.year);
+  var mills=millsForYear(S.year);
+  var yt=sumTotals(rows.map(function(r){return txTotals(r.t);}));
+  var by={},i;
+  for(i=1;i<=12;i++)by[i]={n:0,t:{sacks:0,cost:0,revenue:0,profit:0}};
+  for(i=0;i<mills.length;i++)by[mills[i].month].n++;
+  for(i=0;i<rows.length;i++){var t=txTotals(rows[i].t),e=by[rows[i].m.month];
+    e.t.sacks+=t.sacks;e.t.cost+=t.cost;e.t.revenue+=t.revenue;e.t.profit+=t.profit;}
+  var h=yearChips(S.year);
+  h+='<div class="card banner"><span style="display:flex">'+I.summarize+'</span><div class="b-title">إجمالي سنة '+S.year+'</div><div class="b-sacks">'+fmtSacks(yt.sacks)+'</div>'+profitLabel(yt.profit)+'</div>';
+  h+='<div class="grid">';
+  for(i=1;i<=12;i++){
+    var e=by[i],has=e.n>0||e.t.sacks>0;
+    h+='<div class="card mtile" data-act="month" data-month="'+i+'">'
+      +'<div class="ic'+(has?'':' off')+'">'+I.store+'</div>'
+      +'<div class="sp"></div>'
+      +'<div class="m-name">شهر '+i+'</div>'
+      +'<div class="m-sub">'+monthName(i)+'</div>'
+      +'<div class="m-note">'+(has?'<b>'+e.n+'</b> مطحنة':'لا توجد بيانات')+'</div>'
+      +(has?'<div class="m-note" style="margin-top:2px">'+profitLabel(e.t.profit)+'</div>':'')
+      +'</div>';
+  }
+  return h+'</div>';
+}
+
+function monthHtml(){
+  var mills=millsForPeriod(S.year,S.month);
+  var rows=txsRowsForYear(S.year);
+  var byMill={},agentCount={},monthT={sacks:0,cost:0,revenue:0,profit:0},i;
+  for(i=0;i<mills.length;i++){byMill[mills[i].id]={sacks:0,cost:0,revenue:0,profit:0};agentCount[mills[i].id]=agentsForMill(mills[i].id).length;}
+  for(i=0;i<rows.length;i++){
+    if(rows[i].m.month!==S.month)continue;
+    var t=txTotals(rows[i].t),e=byMill[rows[i].m.id];
+    if(e){e.sacks+=t.sacks;e.cost+=t.cost;e.revenue+=t.revenue;e.profit+=t.profit;}
+    monthT.sacks+=t.sacks;monthT.cost+=t.cost;monthT.revenue+=t.revenue;monthT.profit+=t.profit;
+  }
+  var h='<div class="stats">'+stat('عدد المطاحن',mills.length,I.store)+stat('كيس الشهر',fmtSacks(monthT.sacks),I.sacks)+'</div>';
+  if(!mills.length){
+    h+=emptyState(I.empty,'لا توجد مطاحن لهذا الشهر','اضغط الزر بالأسفل وأضف أول مطحنة');
+  }else{
+    for(i=0;i<mills.length;i++){
+      var m=mills[i],e=byMill[m.id];
+      h+='<div class="card tile" data-act="open-mill" data-id="'+m.id+'">'
+        +'<div class="trow">'
+        +'<div class="avatar brown">'+I.store+'</div>'
+        +'<div class="grow"><div class="tname">'+esc(m.name)+'</div>'
+        +'<div class="tsub">'+agentCount[m.id]+' وكيل'+(m.notes?' • '+esc(m.notes):'')+'</div></div>'
+        +'<button class="mini" data-act="edit-mill" data-id="'+m.id+'">'+I.edit+'</button>'
+        +'<button class="mini danger" data-act="del-mill" data-id="'+m.id+'">'+I.del+'</button>'
+        +'</div>'
+        +'<div style="display:flex;justify-content:flex-end;margin-top:8px">'+profitLabel(e.profit)+'</div>'
+        +'</div>';
+    }
+  }
+  return h;
+}
+
+function agentsHtml(){
+  var mill=millById(S.millId);
+  if(!mill)return emptyState(I.empty,'المطحنة غير موجودة','');
+  var agents=agentsForMill(mill.id);
+  var rows=txsRowsForYear(mill.year);
+  var byAgent={},latest={},i;
+  for(i=0;i<rows.length;i++){
+    if(rows[i].m.id!==mill.id)continue;
+    var t=txTotals(rows[i].t),e=byAgent[rows[i].a.id];
+    if(!e){e={sacks:0,cost:0,revenue:0,profit:0};byAgent[rows[i].a.id]=e;}
+    e.sacks+=t.sacks;e.cost+=t.cost;e.revenue+=t.revenue;e.profit+=t.profit;
+    var L=latest[rows[i].a.id];
+    if(!L||rows[i].t.date>L.date)latest[rows[i].a.id]=rows[i].t;
+  }
+  var tot=sumTotals(Object.keys(byAgent).map(function(k){return byAgent[k];}));
+  var h='<div class="card banner" style="margin-bottom:10px"><span style="display:flex">'+I.store+'</span><div class="b-title">'+esc(mill.name)+'</div></div>';
+  h+='<div class="stats">'+stat('الوكلاء',agents.length,I.person)+stat('أكياس المطحنة',fmtSacks(tot.sacks),I.sacks)+'</div>';
+  if(!agents.length){
+    h+=emptyState(I.truck2,'لا يوجد وكلاء في هذه المطحنة','أضف أول وكيل تتعامل معه');
+  }else{
+    for(i=0;i<agents.length;i++){
+      var a=agents[i],e=byAgent[a.id]||{sacks:0,cost:0,revenue:0,profit:0},tx=latest[a.id]||null;
+      var del=tx?tx.delivered:false;
+      h+='<div class="card tile" data-act="open-agent" data-id="'+a.id+'">'
+        +'<div class="trow">'
+        +'<div class="avatar gold">'+I.person+'</div>'
+        +'<div class="grow"><div class="tname">'+esc(a.name)+'</div>'
+        +(a.phone?'<div class="tsub">'+esc(a.phone)+'</div>':'')
+        +'</div>'
+        +'<span class="pill '+(del?'on':'off')+'" data-act="toggle-del" data-id="'+a.id+'">'+I.truck+(del?' التوصيل وصل':' التوصيل ما وصل')+'</span>'
+        +profitLabel(e.profit)
+        +'<button class="mini" data-act="edit-agent" data-id="'+a.id+'">'+I.edit+'</button>'
+        +'<button class="mini danger" data-act="del-agent" data-id="'+a.id+'">'+I.del+'</button>'
+        +'</div>'
+        +'<div class="div"></div>'
+        +'<div class="info">'
+        +'<div class="cell"><div class="lbl">'+I.cart+'<span>سعر الشراء</span></div><div class="val">'+(tx?fmtMoney(tx.buy):'—')+'</div></div>'
+        +'<div class="cell"><div class="lbl">'+I.cash+'<span>سعر البيع</span></div><div class="val">'+(tx?fmtMoney(tx.sell):'—')+'</div></div>'
+        +'<div class="cell"><div class="lbl">'+I.cal+'<span>التاريخ</span></div><div class="val">'+(tx?fmtDate(tx.date):'—')+'</div></div>'
+        +'<div class="cell"><div class="lbl">'+I.chart+'<span>الربح</span></div><div class="val" style="color:'+(e.profit>=0?'var(--green)':'var(--red)')+'">'+fmtMoney(e.profit)+'</div></div>'
+        +'</div>'
+        +(tx?'<div class="lastline">آخر عملية: '+fmtSacks(tx.sacks)+' — '+(tx.delivered?'وصلت':'ما وصلت')+'</div>':'')
+        +'</div>';
+    }
+    h+='<div class="grand"><div class="g-title">'+I.summarize+'<span>المجموع الكلي — كل الوكلاء</span></div>'
+      +'<div class="g-row"><div class="g-cell"><div class="g-lbl">الأكياس</div><div class="g-val">'+fmtSacks(tot.sacks)+'</div></div>'
+      +'<div class="g-cell"><div class="g-lbl">تكلفة الشراء</div><div class="g-val" style="color:#fff">'+fmtMoney(tot.cost)+'</div></div></div>'
+      +'<div class="g-row"><div class="g-cell"><div class="g-lbl">إيراد البيع</div><div class="g-val" style="color:#fff">'+fmtMoney(tot.revenue)+'</div></div>'
+      +'<div class="g-cell"><div class="g-lbl">الربح الكلي</div><div class="g-val" style="color:'+(tot.profit>=0?'#7fe08a':'#ff8a80')+'">'+fmtMoney(tot.profit)+'</div></div></div>'
+      +'</div>';
+  }
+  return h;
+}
+
+function txHtml(){
+  var agent=agentById(S.agentId);
+  if(!agent)return emptyState(I.empty,'الوكيل غير موجود','');
+  var mill=millById(agent.millId);
+  var txs=txsForAgent(agent.id);
+  var tot=sumTotals(txs.map(txTotals));
+  var h='<div class="card banner" style="margin-bottom:10px"><span style="display:flex">'+I.person+'</span><div class="b-title">'+esc(agent.name)+' — '+esc(mill?mill.name:'')+'</div></div>';
+  h+='<div class="stats">'+stat('الأكياس',fmtSacks(tot.sacks),I.sacks)+stat('تكلفة الشراء',fmtMoney(tot.cost),I.cart)+'</div>';
+  h+='<div class="stats" style="margin-top:0">'+stat('إيراد البيع',fmtMoney(tot.revenue),I.cash)+stat('النتيجة',fmtMoney(tot.profit),I.chart)+'</div>';
+  if(!txs.length){
+    h+=emptyState(I.receipt,'لا توجد عمليات لهذا الوكيل','سجل أول عملية: عدد الأكياس، سعر الشراء، سعر البيع');
+  }else{
+    for(var i=0;i<txs.length;i++){
+      var t=txs[i],tt=txTotals(t);
+      h+='<div class="card tile" style="cursor:default">'
+        +'<div class="trow">'
+        +'<span style="display:flex;color:#695d4a">'+I.cal+'</span>'
+        +'<span style="font-size:13px;color:#695d4a">'+fmtDate(t.date)+'</span>'
+        +'<div class="grow"></div>'
+        +'<button class="mini" data-act="edit-tx" data-id="'+t.id+'">'+I.edit+'</button>'
+        +'<button class="mini danger" data-act="del-tx" data-id="'+t.id+'">'+I.del+'</button>'
+        +'</div>'
+        +'<div class="tx-chips">'
+        +'<span class="chipbox">'+I.sacks+' '+fmtSacks(t.sacks)+'</span>'
+        +'<span class="chipbox">'+I.cart+' شراء '+fmtMoney(t.buy)+'</span>'
+        +'<span class="chipbox">'+I.cash+' بيع '+fmtMoney(t.sell)+'</span>'
+        +'<span class="chipbox '+(t.delivered?'gold':'silver')+'">'+(t.delivered?'التوصيل وصل':'التوصيل ما وصل')+'</span>'
+        +'</div>'
+        +(t.notes?'<div class="tsub" style="margin-top:8px">'+esc(t.notes)+'</div>':'')
+        +'<div style="display:flex;justify-content:flex-end;margin-top:8px">'+profitLabel(tt.profit)+'</div>'
+        +'</div>';
+    }
+  }
+  return h;
+}
+
+function reportHtml(){
+  var rows=txsRowsForYear(S.year);
+  var mills=millsForYear(S.year);
+  if(!rows.length&&!mills.length){
+    return yearChips(S.year)+emptyState(I.receipt,'لا توجد بيانات لهذه السنة','سجل عملياتك من الرئيسية وارجع هنا للنتائج');
+  }
+  var all=sumTotals(rows.map(function(r){return txTotals(r.t);}));
+  var h=yearChips(S.year);
+  h+='<div class="stats">'+stat('إجمالي الأكياس',fmtSacks(all.sacks),I.sacks)+stat('تكلفة الشراء',fmtMoney(all.cost),I.cart)+'</div>';
+  h+='<div class="stats" style="margin-top:0">'+stat('إيراد البيع',fmtMoney(all.revenue),I.cash)+stat('الربح الصافي',fmtMoney(all.profit),I.chart)+'</div>';
+  for(var m=1;m<=12;m++){
+    var ms=mills.filter(function(x){return x.month===m;});
+    var mr=rows.filter(function(x){return x.m.month===m;});
+    if(!ms.length&&!mr.length)continue;
+    var mt=sumTotals(mr.map(function(r){return txTotals(r.t);}));
+    var byMill={},i;
+    for(i=0;i<mr.length;i++)(byMill[mr[i].m.id]=byMill[mr[i].m.id]||[]).push(mr[i]);
+    h+='<details class="card report" style="margin-top:10px"><summary>'
+      +'<span class="badge">'+m+'</span>'
+      +'<div class="grow"><div class="r-title">شهر '+m+' • '+monthName(m)+' '+S.year+'</div>'
+      +'<div class="r-sub">'+mr.length+' عملية • '+fmtSacks(mt.sacks)+'</div></div>'
+      +profitLabel(mt.profit)
+      +'</summary><div class="rep-body">';
+    for(i=0;i<ms.length;i++){
+      var mill=ms[i],list=byMill[mill.id]||[];
+      var mt2=sumTotals(list.map(function(r){return txTotals(r.t);}));
+      var byAgent={},j;
+      for(j=0;j<list.length;j++)(byAgent[list[j].a.id]=byAgent[list[j].a.id]||[]).push(list[j]);
+      h+='<details class="mill-sec" open><summary>'
+        +'<span style="display:flex;color:var(--primary)">'+I.store+'</span>'
+        +'<div class="grow"><div class="m-name">'+esc(mill.name)+'</div>'
+        +'<div class="m-sub">'+list.length+' عملية • '+fmtSacks(mt2.sacks)+'</div></div>'
+        +profitLabel(mt2.profit)
+        +'</summary>';
+      for(j=0;j<agentsForMill(mill.id).length;j++){
+        var a=agentsForMill(mill.id)[j],al=byAgent[a.id]||[];
+        if(!al.length)continue;
+        h+='<div class="agent-row"><span style="display:flex;color:var(--gold)">'+I.person+'</span>'
+          +'<div class="a-name">'+esc(a.name)+'</div>'
+          +'<span class="r-sub" style="margin-left:8px">'+al.length+' عملية</span>'
+          +profitLabel(sumTotals(al.map(function(r){return txTotals(r.t);})).profit)
+          +'</div>';
+      }
+      h+='</details>';
+    }
+    h+='</div></details>';
+  }
+  return h;
+}
+
+function configHtml(){
+  return '<div class="auth-wrap"><div class="auth-card cfg-card">'
+    +'<div class="auth-logo">'+I.store+'</div>'
+    +'<h2>تحتاج إعداد Firebase</h2>'
+    +'<p class="auth-sub">البرنامج جاهز، بس لازم تربط مشروع Firebase مجاني</p>'
+    +'<ol>'
+    +'<li>ادخل <b>console.firebase.google.com</b> بحساب جيميل وسوي مشروع جديد</li>'
+    +'<li>من <b>Build → Authentication</b> فعّل طريقة التسجيل <b>Email/Password</b></li>'
+    +'<li>من <b>Build → Firestore Database</b> سوي قاعدة بيانات جديدة</li>'
+    +'<li>من <b>Project settings → Your apps → Web (رمز الويب)</b> انسخ إعدادات التطبيق</li>'
+    +'<li>افتح ملف <b>firebase-config.js</b> بنفس مجلد البرنامج ولصق الإعدادات مكان العبارات</li>'
+    +'<li>من <b>Firestore Database → Rules</b> غير القواعد: السماح للداخلين بس بقراءة/كتابة ملفهم (أرسلي التعليمة)</li>'
+    +'<li>احفظ وحدّث هذه الصفحة</li>'
+    +'</ol></div></div>';
+}
+
+function loginHtml(){
+  return '<div class="auth-wrap"><div class="auth-card">'
+    +'<div class="auth-logo">'+I.store+'</div>'
+    +'<h2>دفتر الطحين</h2>'
+    +'<p class="auth-sub">سجل دخولك وتطلع بياناتك بأي جهاز</p>'
+    +'<label class="field"><span>البريد الإلكتروني</span><input id="authEmail" type="email" placeholder="example@gmail.com" autocomplete="email"></label>'
+    +'<label class="field"><span>كلمة المرور</span><input id="authPass" type="password" placeholder="••••••••" autocomplete="current-password"></label>'
+    +'<div id="authErr" class="auth-err"></div>'
+    +'<button class="btn primary btn-block" id="btnLogin">دخول</button>'
+    +'<button class="btn ghost btn-block" id="btnSignup">تسجيل حساب جديد</button>'
+    +'<button class="btn link" id="btnReset">نسيت كلمة المرور؟</button>'
+    +'</div></div>';
+}
+
+function authMsg(e){
+  var c=e&&e.code?e.code:'';
+  var m={
+    'auth/invalid-email':'البريد الإلكتروني غير صحيح',
+    'auth/user-not-found':'ماكو حساب بهذا البريد',
+    'auth/wrong-password':'كلمة المرور غلط',
+    'auth/invalid-credential':'البريد أو كلمة المرور غلط',
+    'auth/invalid-login-credentials':'البريد أو كلمة المرور غلط',
+    'auth/email-already-in-use':'هذا البريد مسجل مسبقاً — ادخل مباشرة',
+    'auth/weak-password':'كلمة المرور قصيرة (ع الأقل 6 أحرف)',
+    'auth/too-many-requests':'حاول بعدين — محاولات كثيرة',
+    'auth/network-request-failed':'لا يوجد اتصال بالإنترنت',
+    'auth/operation-not-allowed':'التسجيل بالبريد غير مفعل — فعله من Firebase'
+  };
+  return m[c]||(e&&e.message?e.message:'حصل خطأ — حاول مرة ثانية');
+}
+
+function bindAuth(){
+  var errEl=document.getElementById('authErr');
+  var btnL=document.getElementById('btnLogin'),btnS=document.getElementById('btnSignup'),btnR=document.getElementById('btnReset');
+  function showErr(m){if(errEl)errEl.textContent=m;}
+  function creds(){return {em:document.getElementById('authEmail').value.trim(),ps:document.getElementById('authPass').value};}
+  if(btnL)btnL.onclick=function(){
+    var c=creds();
+    if(!c.em||!c.ps){showErr('اكتب البريد وكلمة المرور');return;}
+    showErr('');btnL.textContent='جاري الدخول...';
+    signInWithEmailAndPassword(FIRE.auth,c.em,c.ps).catch(function(e){btnL.textContent='دخول';showErr(authMsg(e));});
+  };
+  if(btnS)btnS.onclick=function(){
+    var c=creds();
+    if(!c.em||!c.ps){showErr('اكتب البريد وكلمة المرور');return;}
+    showErr('');btnS.textContent='جاري إنشاء الحساب...';
+    createUserWithEmailAndPassword(FIRE.auth,c.em,c.ps).catch(function(e){btnS.textContent='تسجيل حساب جديد';showErr(authMsg(e));});
+  };
+  if(btnR)btnR.onclick=function(){
+    var c=creds();
+    if(!c.em){showErr('اكتب بريدك أول');return;}
+    sendPasswordResetEmail(FIRE.auth,c.em).then(function(){toast('رابط التغيير انرسل لبريدك');}).catch(function(e){showErr(authMsg(e));});
+  };
+}
+
+function startSession(user){
+  UID=user.uid;USER_EMAIL=user.email||'';AUTH='ready';
+  var cached=null;
+  try{var r=localStorage.getItem(LS_CACHE+UID);if(r)cached=JSON.parse(r);}catch(e){}
+  DB=(cached&&Array.isArray(cached.mills))?normDB(cached):freshDB();
+  S.screen='home';S.year=new Date().getFullYear();S.millId=null;S.agentId=null;
+  FIRE.docRef=doc(FIRE.db,'users',UID);
+  getDoc(FIRE.docRef).then(function(snap){
+    if(snap.exists()&&isDoc(snap.data()))DB=applyDoc(snap.data());
+    else FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).catch(function(){});
+    try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
+    if(UNSUB)UNSUB();
+    UNSUB=onSnapshot(FIRE.docRef,function(cur){
+      if(cur.exists()&&isDoc(cur.data())){
+        var d=applyDoc(cur.data());
+        if(JSON.stringify(d)!==JSON.stringify(DB)){DB=d;render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
+      }
+    });
+    render();
+  }).catch(function(){render();});
+}
+function isDoc(d){return d&&Array.isArray(d.mills);}
+function applyDoc(d){return normDB(d);}
+
+function endSession(){
+  if(UNSUB){UNSUB();UNSUB=null;}
+  clearTimeout(SAVE_TIMER);
+  FIRE.docRef=null;AUTH='login';UID=null;USER_EMAIL='';
+  S.screen='home';S.millId=null;S.agentId=null;
+  DB=freshDB();
+  render();
+}
+
+function render(){
+  var title=document.getElementById('title');
+  var bb=document.getElementById('backBtn');
+  var hb=document.getElementById('hdrBtns');
+  var oldFab=document.querySelector('.fab');if(oldFab)oldFab.remove();
+  if(CFG_MISSING){
+    title.textContent='دفتر الطحين';
+    bb.classList.add('hidden');hb.classList.add('hidden');MENU.classList.add('hidden');
+    MAIN.innerHTML=configHtml();
+    return;
+  }
+  if(AUTH!=='ready'){
+    title.textContent='دفتر الطحين';
+    bb.classList.add('hidden');hb.classList.add('hidden');MENU.classList.add('hidden');
+    MAIN.innerHTML=loginHtml();
+    bindAuth();
+    return;
+  }
+  bb.classList.remove('hidden');hb.classList.remove('hidden');
+  var back=false,body='',fab=null;
+  if(S.screen==='report'){back=true;title.textContent='النتائج النهائية';body=reportHtml();}
+  else if(S.screen==='month'){back=true;title.textContent='مطاحن شهر '+S.month;body=monthHtml();fab={act:'add-mill',label:'مطحنة جديدة'};}
+  else if(S.screen==='agents'){back=true;title.textContent='الوكلاء';body=agentsHtml();fab={act:'add-agent',label:'وكيل جديد'};}
+  else if(S.screen==='tx'){back=true;title.textContent='عمليات الوكيل';body=txHtml();fab={act:'add-tx',label:'عملية جديدة'};}
+  else {title.textContent='دفتر الطحين';body=homeHtml();}
+  bb.classList.toggle('hidden',!back);
+  MAIN.innerHTML=body;
+  if(fab){
+    var b=document.createElement('button');
+    b.className='fab';b.dataset.act=fab.act;b.innerHTML=I.add+'<span>'+fab.label+'</span>';
+    document.body.appendChild(b);
+  }
+}
+
+var SHEET=document.getElementById('sheetWrap');
+var SHEET_FORM=document.getElementById('sheetForm');
+var SHEET_TITLE=document.getElementById('sheetTitle');
+function openSheet(title,fieldsHtml,onSubmit){
+  SHEET_TITLE.textContent=title;
+  SHEET_FORM.innerHTML=fieldsHtml+'<button class="btn primary" type="submit" style="width:100%;margin-top:6px">حفظ</button>';
+  if(!SHEET_FORM._l){
+    SHEET_FORM.addEventListener('submit',function(ev){
+      ev.preventDefault();
+      var fd=new FormData(SHEET_FORM);
+      var o={};
+      for(var p of fd.entries())o[p[0]]=p[1];
+      if(SHEET_FORM._cb(o)!==false)closeSheet();
+    });
+    SHEET_FORM._l=true;
+  }
+  SHEET_FORM._cb=onSubmit;
+  SHEET.classList.remove('hidden');
+  setTimeout(function(){var i=SHEET_FORM.querySelector('input');if(i)try{i.focus();}catch(e){}},80);
+}
+function closeSheet(){SHEET.classList.add('hidden');}
+document.getElementById('sheetClose').onclick=closeSheet;
+document.getElementById('sheetBack').onclick=closeSheet;
+
+function field(label,inner){return '<label class="field"><span>'+label+'</span>'+inner+'</label>';}
+function textIn(name,val,ph){return '<input name="'+name+'" value="'+esc(val)+'" placeholder="'+esc(ph)+'" autocomplete="off">';}
+function numIn(name,val,ph){return '<input name="'+name+'" type="number" inputmode="decimal" step="any" value="'+esc(val)+'" placeholder="'+esc(ph)+'" autocomplete="off">';}
+
+function openMillSheet(existing){
+  var fields=field('اسم المطحنة',textIn('name',existing?existing.name:'','مثال: مطحنة الفرات'))
+    +field('ملاحظات (اختياري)',textIn('notes',existing?existing.notes:'','موقع، ملاحظات أخرى'));
+  openSheet(existing?'تعديل المطحنة':'مطحنة جديدة',fields,function(o){
+    if(!o.name.trim()){toast('اكتب اسم المطحنة');return false;}
+    if(existing){existing.name=o.name.trim();existing.notes=o.notes.trim();}
+    else DB.mills.push({id:newId(),name:o.name.trim(),year:S.year,month:S.month,notes:o.notes.trim()});
+    save();render();return true;
+  });
+}
+
+function openAgentSheet(existing){
+  var fields=field('اسم الوكيل',textIn('name',existing?existing.name:'','مثال: أبو علي'))
+    +field('رقم الهاتف (اختياري)',textIn('phone',existing?existing.phone:'','07xx xxx xxxx'));
+  openSheet(existing?'تعديل الوكيل':'وكيل جديد',fields,function(o){
+    if(!o.name.trim()){toast('اكتب اسم الوكيل');return false;}
+    if(existing){existing.name=o.name.trim();existing.phone=o.phone.trim();}
+    else DB.agents.push({id:newId(),millId:S.millId,name:o.name.trim(),phone:o.phone.trim()});
+    save();render();return true;
+  });
+}
+
+function openTxSheet(existing){
+  var t=existing;
+  var fields=field('التاريخ','<input name="date" type="date" value="'+(t?t.date:todayStr())+'">')
+    +field('عدد الأكياس',numIn('sacks',t?_dropZeros(t.sacks):'','مثال: 100'))
+    +field('سعر شراء الكيس',numIn('buy',t?_dropZeros(t.buy):'','مثال: 150000'))
+    +field('سعر بيع الكيس',numIn('sell',t?_dropZeros(t.sell):'','مثال: 155000'))
+    +field('ملاحظات (اختياري)','<textarea name="notes" placeholder="مثال: نوع الطحين، الشحنة...">'+esc(t?t.notes:'')+'</textarea>')
+    +'<label class="switch-row" style="margin-top:4px"><span>هل وصلت شحنة التوصيل؟</span>'
+    +'<input type="checkbox" name="delivered"'+(t&&t.delivered?' checked':'')+' id="delChk"><span class="track"></span></label>';
+  openSheet(t?'تعديل العملية':'عملية جديدة',fields,function(o){
+    var sacks=parsenum(o.sacks),buy=parsenum(o.buy),sell=parsenum(o.sell),date=o.date||todayStr();
+    if(sacks<=0){toast('اكتب عدد الأكياس');return false;}
+    if(t){t.sacks=sacks;t.buy=buy;t.sell=sell;t.date=date;t.delivered=!!o.delivered;t.notes=o.notes.trim();}
+    else DB.txs.push({id:newId(),agentId:S.agentId,date:date,sacks:sacks,buy:buy,sell:sell,delivered:!!o.delivered,notes:o.notes.trim()});
+    save();render();return true;
+  });
+}
+function _dropZeros(v){return v===Math.round(v)?String(Math.round(v)):String(v);}
+
+var DLG=document.getElementById('dialogWrap');
+document.getElementById('dlgNo').onclick=function(){DLG.classList.add('hidden');if(DLG._no)DLG._no();};
+document.getElementById('dlgOk').onclick=function(){DLG.classList.add('hidden');if(DLG._yes)DLG._yes();};
+document.getElementById('dialogBack').onclick=function(){DLG.classList.add('hidden');};
+function confirmBox(title,msg,onOk,okLabel){
+  DLG._yes=onOk;DLG._no=null;
+  document.getElementById('dlgTitle').textContent=title;
+  document.getElementById('dlgMsg').textContent=msg;
+  var b=document.getElementById('dlgOk');
+  b.textContent=okLabel||'حذف';
+  b.className='btn '+(okLabel?'primary':'danger');
+  DLG.classList.remove('hidden');
+}
+
+var TOAST=document.getElementById('toast');
+function toast(msg){
+  TOAST.textContent=msg;
+  TOAST.classList.add('show');
+  clearTimeout(TOAST._h);
+  TOAST._h=setTimeout(function(){TOAST.classList.remove('show');},2500);
+}
+
+var MENU=document.getElementById('menu');
+function buildMenu(){
+  MENU.innerHTML=(USER_EMAIL?'<div class="menu-user">'+esc(USER_EMAIL)+'</div>':'')
+    +'<button data-act="signout">تسجيل الخروج</button>'
+    +'<button data-act="currency">رمز العملة</button>'
+    +'<button data-act="export">تصدير نسخة احتياطية</button>'
+    +'<button data-act="import">استيراد نسخة</button>'
+    +'<button data-act="wipe">مسح كل البيانات</button>';
+}
+buildMenu();
+document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
+document.getElementById('reportBtn').innerHTML=I.reportic;
+document.getElementById('reportBtn').onclick=function(){go('report');};
+document.addEventListener('click',function(ev){
+  if(!MENU.classList.contains('hidden')&&!ev.target.closest('#menu'))MENU.classList.add('hidden');
+});
+
+function openCurrency(){
+  MENU.classList.add('hidden');
+  var fields=field('رمز العملة',textIn('currency',DB.currency,'مثال: د.ع'));
+  openSheet('رمز العملة',fields,function(o){
+    if(!o.currency.trim()){toast('اكتب رمز العملة');return false;}
+    DB.currency=o.currency.trim();save();render();return true;
+  });
+}
+function exportBackup(){
+  MENU.classList.add('hidden');
+  var blob=new Blob([JSON.stringify(DB,null,1)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='دفتر-الطحين-'+todayStr()+'.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},100);
+}
+var FILE_IN=document.createElement('input');
+FILE_IN.type='file';
+FILE_IN.accept='.json,application/json';
+FILE_IN.style.display='none';
+document.body.appendChild(FILE_IN);
+FILE_IN.onchange=function(){
+  var f=FILE_IN.files[0];FILE_IN.value='';if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var d=JSON.parse(r.result);
+      if(!d||!Array.isArray(d.mills)||!Array.isArray(d.agents)||!Array.isArray(d.txs))throw 0;
+      confirmBox('استيراد نسخة','سيتم استبدال كل البيانات الحالية بالنسخة المستوردة',function(){
+        DB=normDB(d);
+        save();render();toast('تم الاستيراد');
+      },'استيراد');
+    }catch(e){toast('الملف غير صالح');}
+  };
+  r.readAsText(f);
+};
+
+function toggleDelivered(agentId){
+  var txs=txsForAgent(agentId);
+  if(!txs.length){toast('لا توجد عملية لهذا الوكيل');return;}
+  txs[0].delivered=!txs[0].delivered;
+  save();render();
+}
+function delMill(id){
+  var m=millById(id);if(!m)return;
+  confirmBox('حذف المطحنة','سيتم حذف «'+m.name+'» وكل وكلائها وعملياتها',function(){
+    DB.mills=DB.mills.filter(function(x){return x.id!==id;});
+    DB.txs=DB.txs.filter(function(x){var a=agentById(x.agentId);return !a||a.millId!==id;});
+    DB.agents=DB.agents.filter(function(x){return x.millId!==id;});
+    save();render();toast('تم حذف المطحنة');
+  });
+}
+function delAgent(id){
+  var a=agentById(id);if(!a)return;
+  confirmBox('حذف الوكيل','سيتم حذف «'+a.name+'» وكل عملياته',function(){
+    DB.agents=DB.agents.filter(function(x){return x.id!==id;});
+    DB.txs=DB.txs.filter(function(x){return x.agentId!==id;});
+    save();render();toast('تم حذف الوكيل');
+  });
+}
+function delTx(id){
+  var t=DB.txs.find(function(x){return x.id===id;});if(!t)return;
+  confirmBox('حذف العملية',fmtSacks(t.sacks)+' بتاريخ '+fmtDate(t.date),function(){
+    DB.txs=DB.txs.filter(function(x){return x.id!==id;});
+    save();render();toast('تم حذف العملية');
+  });
+}
+function wipeAll(){
+  confirmBox('مسح كل البيانات','سيتم حذف كل المطاحن والوكلاء والعمليات نهائياً',function(){
+    DB=freshDB();save();S.screen='home';render();toast('تم مسح كل البيانات');
+  },'مسح');
+}
+
+document.addEventListener('click',function(ev){
+  var el=ev.target.closest('[data-act]');
+  if(!el)return;
+  var act=el.dataset.act,id=+el.dataset.id;
+  if(act==='back'){goBack();}
+  else if(act==='report'){go('report');}
+  else if(act==='month'){go('month',{month:+el.dataset.month});}
+  else if(act==='year'){S.year=+el.dataset.year;render();}
+  else if(act==='open-mill'){go('agents',{millId:id});}
+  else if(act==='open-agent'){go('tx',{agentId:id});}
+  else if(act==='add-mill'){openMillSheet(null);}
+  else if(act==='add-agent'){openAgentSheet(null);}
+  else if(act==='add-tx'){openTxSheet(null);}
+  else if(act==='edit-mill'){openMillSheet(millById(id));}
+  else if(act==='edit-agent'){openAgentSheet(agentById(id));}
+  else if(act==='edit-tx'){openTxSheet(DB.txs.find(function(x){return x.id===id;}));}
+  else if(act==='del-mill'){delMill(id);}
+  else if(act==='del-agent'){delAgent(id);}
+  else if(act==='del-tx'){delTx(id);}
+  else if(act==='toggle-del'){toggleDelivered(id);}
+  else if(act==='signout'){MENU.classList.add('hidden');signOut(FIRE.auth).then(function(){}).catch(function(){});}
+  else if(act==='currency'){openCurrency();}
+  else if(act==='export'){exportBackup();}
+  else if(act==='import'){MENU.classList.add('hidden');FILE_IN.click();}
+  else if(act==='wipe'){wipeAll();}
+});
+document.getElementById('backBtn').onclick=goBack;
+
+function boot(){
+  initFire();
+  if(!CFG_MISSING){
+    onAuthStateChanged(FIRE.auth,function(user){
+      if(user){if(AUTH!=='ready')startSession(user);}
+      else endSession();
+    });
+  }
+  render();
+}
+boot();
+</script>
+</body>
+</html>
