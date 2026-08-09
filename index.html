@@ -507,7 +507,10 @@ function agentsHtml(){
       h+='<div class="card tile" data-act="open-agent" data-id="'+a.id+'">'
         +'<div class="trow">'
         +'<div class="avatar gold">'+I.person+'</div>'
-        +'<div class="grow"><div class="tname">'+esc(a.name)+'</div>'
+        +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;min-width:0">'
+        +'<div class="tname">'+esc(a.name)+'</div>'
+        +'<span class="chipbox" style="flex:none">'+I.sacks+' '+fmtSacks(e.sacks)+'</span>'
+        +'</div>'
         +(a.phone?'<div class="tsub">'+esc(a.phone)+'</div>':'')
         +'</div>'
         +'<span class="pill '+(del?'on':'off')+'" data-act="toggle-del" data-id="'+a.id+'">'+I.truck+(del?' التوصيل وصل':' التوصيل ما وصل')+'</span>'
