@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>دفتر الطحين</title>
 <link rel="icon" href="data:,">
 <style>
@@ -24,6 +27,9 @@ header{
   padding:8px 10px; border-bottom:1px solid var(--line);
 }
 header h1{font-size:19px; font-weight:800; margin:0; letter-spacing:.2px}
+#banner{display:none; background:#7a4e06; color:#ffe9c2; font-size:12.5px; font-weight:700; padding:7px 12px; text-align:center}
+#banner.show{display:block}
+#banner.ok{background:var(--green); color:#eaffea}
 #hdrBtns{display:flex; align-items:center}
 .icon-btn{
   background:none; border:none; color:var(--text); cursor:pointer;
@@ -250,6 +256,8 @@ input[type=date]{direction:ltr; text-align:right}
   </div>
 </header>
 
+<div id="banner"></div>
+
 <main id="main"></main>
 
 <div id="menu" class="menu hidden"></div>
@@ -297,7 +305,7 @@ function normDB(d){
 }
 
 var DB=freshDB();
-var CFG_MISSING=false,FIRE=null,AUTH='boot',UID=null,UNSUB=null,USER_EMAIL='',SAVE_TIMER=null;
+var CFG_MISSING=false,FIRE=null,AUTH='boot',UID=null,UNSUB=null,USER_EMAIL='',SAVE_TIMER=null,SYNC_WATCH=null;
 
 function initFire(){
   try{
@@ -313,8 +321,20 @@ function save(){
   if(!FIRE||!FIRE.docRef)return;
   clearTimeout(SAVE_TIMER);
   SAVE_TIMER=setTimeout(function(){
-    FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).catch(function(){toast('تعذر الحفظ بالسحابة — تأكد من النت');});
+    FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){clearBanner();}).catch(function(e){
+      showBanner('تعذر رفع التعديلات للسحابة — سيُعاد المحاولة. تأكد من النت','err');
+      clearTimeout(SAVE_TIMER);
+      SAVE_TIMER=setTimeout(save,4000);
+    });
   },250);
+}
+function saveNow(){
+  try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
+  if(!FIRE||!FIRE.docRef)return Promise.resolve();
+  clearTimeout(SAVE_TIMER);
+  return FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){clearBanner();}).catch(function(e){
+    showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بجوالك حالياً فقط','err');
+  });
 }
 function newId(){return ++DB.seq;}
 
@@ -676,19 +696,51 @@ function startSession(user){
   DB=(cached&&Array.isArray(cached.mills))?normDB(cached):freshDB();
   S.screen='home';S.year=new Date().getFullYear();S.millId=null;S.agentId=null;
   FIRE.docRef=doc(FIRE.db,'users',UID);
+  saveNow();
+  attachSync();
   getDoc(FIRE.docRef).then(function(snap){
-    if(snap.exists()&&isDoc(snap.data()))DB=applyDoc(snap.data());
-    else FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).catch(function(){});
+    if(snap.exists()&&isDoc(snap.data())){
+      var d=applyDoc(snap.data());
+      if(JSON.stringify(d)!==JSON.stringify(DB)){DB=d;render();}
+    }else{
+      FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).catch(function(){});
+    }
     try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
-    if(UNSUB)UNSUB();
-    UNSUB=onSnapshot(FIRE.docRef,function(cur){
-      if(cur.exists()&&isDoc(cur.data())){
-        var d=applyDoc(cur.data());
-        if(JSON.stringify(d)!==JSON.stringify(DB)){DB=d;render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
-      }
-    });
     render();
   }).catch(function(){render();});
+}
+function attachSync(){
+  if(!FIRE||!FIRE.docRef)return;
+  clearTimeout(SYNC_WATCH);
+  SYNC_WATCH=setTimeout(function(){
+    showBanner('جاري الاتصال بالسحابة… إن استمرت المشكلة تأكد من النت أو اسمح للاتصال','err');
+  },7000);
+  if(UNSUB)UNSUB();
+  UNSUB=onSnapshot(FIRE.docRef,function(cur){
+    if(!cur.exists())return;
+    var d=applyDoc(cur.data());
+    if(JSON.stringify(d)!==JSON.stringify(DB)){DB=d;render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
+    clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
+    clearBanner();
+  },function(){
+    clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
+    showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بهذا الجوال فقط','err');
+  });
+}
+function syncNow(){
+  MENU.classList.add('hidden');
+  saveNow().then(function(){attachSync();});
+  toast('تم إرسال طلب المزامنة');
+}
+function showBanner(msg,cls){
+  var b=document.getElementById('banner');
+  b.textContent=msg;
+  b.className=cls==='ok'||cls==='err'?('show '+cls):'show';
+}
+function clearBanner(){
+  var b=document.getElementById('banner');
+  b.className='';
+  b.textContent='';
 }
 function isDoc(d){return d&&Array.isArray(d.mills);}
 function applyDoc(d){return normDB(d);}
@@ -806,6 +858,7 @@ function openTxSheet(existing){
 function _dropZeros(v){return v===Math.round(v)?String(Math.round(v)):String(v);}
 
 function openYearSheet(){
+  MENU.classList.add('hidden');
   var ys=years(),maxY=new Date().getFullYear(),i;
   for(i=0;i<DB.years.length;i++)if(DB.years[i]>maxY)maxY=DB.years[i];
   for(i=0;i<ys.length;i++)if(ys[i]>maxY)maxY=ys[i];
@@ -843,11 +896,14 @@ function toast(msg){
 var MENU=document.getElementById('menu');
 function buildMenu(){
   MENU.innerHTML=(USER_EMAIL?'<div class="menu-user">'+esc(USER_EMAIL)+'</div>':'')
+    +'<button data-act="add-year">إضافة سنة جديدة</button>'
+    +'<button data-act="sync">مزامنة مع السحابة الآن</button>'
     +'<button data-act="signout">تسجيل الخروج</button>'
     +'<button data-act="currency">رمز العملة</button>'
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
-    +'<button data-act="wipe">مسح كل البيانات</button>';
+    +'<button data-act="wipe">مسح كل البيانات</button>'
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v2</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -940,6 +996,7 @@ document.addEventListener('click',function(ev){
   else if(act==='month'){go('month',{month:+el.dataset.month});}
   else if(act==='year'){S.year=+el.dataset.year;render();}
   else if(act==='add-year'){openYearSheet();}
+  else if(act==='sync'){syncNow();}
   else if(act==='open-mill'){go('agents',{millId:id});}
   else if(act==='open-agent'){go('tx',{agentId:id});}
   else if(act==='add-mill'){openMillSheet(null);}
@@ -959,8 +1016,11 @@ document.addEventListener('click',function(ev){
   else if(act==='wipe'){wipeAll();}
 });
 document.getElementById('backBtn').onclick=goBack;
+document.getElementById('backBtn').innerHTML=I.back;
 
 function boot(){
+  window.addEventListener('error',function(ev){showBanner('حصل خطأ تقني — صوّر الرسالة وخبّرنا: '+(ev.message||'غير معروف'),'err');});
+  window.addEventListener('online',function(){syncNow();});
   initFire();
   if(!CFG_MISSING){
     onAuthStateChanged(FIRE.auth,function(user){
