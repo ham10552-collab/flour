@@ -285,13 +285,14 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstat
 var LS_CACHE='flour_cache_';
 var MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
-function freshDB(){return {seq:0,currency:'د.ع',mills:[],agents:[],txs:[]};}
+function freshDB(){return {seq:0,currency:'د.ع',mills:[],agents:[],txs:[],years:[]};}
 function normDB(d){
   if(typeof d.seq!=='number')d.seq=0;
   if(typeof d.currency!=='string')d.currency='د.ع';
   if(!Array.isArray(d.mills))d.mills=[];
   if(!Array.isArray(d.agents))d.agents=[];
   if(!Array.isArray(d.txs))d.txs=[];
+  if(!Array.isArray(d.years))d.years=[];
   return d;
 }
 
@@ -389,10 +390,12 @@ function stat(lbl,val,ic){return '<div class="stat"><div class="lbl">'+ic+'<span
 function profitLabel(p){return '<span class="profit '+(p>0?'pos':p<0?'neg':'neutral')+'">'+fmtMoney(p)+'</span>';}
 function yearChips(sel){
   var ys=years(),s={};s[sel]=1;s[new Date().getFullYear()]=1;
-  for(var i=0;i<ys.length;i++)s[ys[i]]=1;
+  for(var i=0;i<DB.years.length;i++)s[DB.years[i]]=1;
+  for(i=0;i<ys.length;i++)s[ys[i]]=1;
   var all=Object.keys(s).map(Number).sort(function(a,b){return a-b;});
   var h='<div class="chips">';
   for(i=0;i<all.length;i++)h+='<button class="chip'+(all[i]===sel?' sel':'')+'" data-act="year" data-year="'+all[i]+'">'+all[i]+'</button>';
+  h+='<button class="chip" data-act="add-year" style="color:var(--primary);border-style:dashed">+ سنة</button>';
   return h+'</div>';
 }
 function emptyState(ic,t,s){return '<div class="empty"><div class="e-ic">'+ic+'</div><div class="e-t">'+t+'</div><div class="e-s">'+s+'</div></div>';}
@@ -802,6 +805,19 @@ function openTxSheet(existing){
 }
 function _dropZeros(v){return v===Math.round(v)?String(Math.round(v)):String(v);}
 
+function openYearSheet(){
+  var ys=years(),maxY=new Date().getFullYear(),i;
+  for(i=0;i<DB.years.length;i++)if(DB.years[i]>maxY)maxY=DB.years[i];
+  for(i=0;i<ys.length;i++)if(ys[i]>maxY)maxY=ys[i];
+  var fields=field('السنة الجديدة','<input name="year" type="number" inputmode="numeric" value="'+(maxY+1)+'">');
+  openSheet('إضافة سنة جديدة',fields,function(o){
+    var y=Math.round(parsenum(o.year));
+    if(y<2000||y>2100){toast('اكتب سنة صحيحة');return false;}
+    if(DB.years.indexOf(y)<0)DB.years.push(y);
+    save();go('home',{year:y});return true;
+  });
+}
+
 var DLG=document.getElementById('dialogWrap');
 document.getElementById('dlgNo').onclick=function(){DLG.classList.add('hidden');if(DLG._no)DLG._no();};
 document.getElementById('dlgOk').onclick=function(){DLG.classList.add('hidden');if(DLG._yes)DLG._yes();};
@@ -923,6 +939,7 @@ document.addEventListener('click',function(ev){
   else if(act==='report'){go('report');}
   else if(act==='month'){go('month',{month:+el.dataset.month});}
   else if(act==='year'){S.year=+el.dataset.year;render();}
+  else if(act==='add-year'){openYearSheet();}
   else if(act==='open-mill'){go('agents',{millId:id});}
   else if(act==='open-agent'){go('tx',{agentId:id});}
   else if(act==='add-mill'){openMillSheet(null);}
