@@ -747,7 +747,7 @@ function bindAuth(){
       clearTimeout(t);btnS.textContent='تسجيل حساب جديد';
       if(r.st==='noc'){finishLogin(c.em);toast('تم إنشاء حسابك — بياناتك راح تُرفع للسحابة');}
       else if(r.st==='ok'){PS='';showErr(authMsg({err:'taken'}));}
-      else if(r.st==='wrong'){DB=normDB(r.d);PS=c.ps;finishLogin(c.em);}
+      else if(r.st==='wrong'){PS='';showErr(authMsg({err:'taken'}));}
       else showErr(authMsg({err:'net'}));
     });
   };
