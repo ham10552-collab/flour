@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>فحص الاتصال — دفتر الطحين</title>
+<style>
+body{font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:#FAF6EF;color:#3E2E12;margin:0;padding:16px;line-height:1.6}
+h1{font-size:18px;margin:0 0 4px}
+p.sub{color:#8a7a5f;font-size:13px;margin:0 0 16px}
+.row{background:#fff;border:1px solid #E4D8C0;border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:14px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.row .url{font-size:11.5px;color:#8a7a5f;font-weight:600;direction:ltr;text-align:right;word-break:break-all}
+.badge{flex:none;font-size:12px;padding:4px 10px;border-radius:999px}
+.wait{background:#f1ece1;color:#8a7a5f}
+.ok{background:rgba(46,125,50,.12);color:#2E7D32}
+.bad{background:rgba(198,40,40,.10);color:#C62828}
+.note{background:#fff3d6;border:1px solid #e8d5a0;border-radius:12px;padding:12px;font-size:13px;margin-top:16px}
+</style>
+</head>
+<body>
+<h1>فحص الاتصال بخوادم التطبيق</h1>
+<p class="sub">افتح هذه الصفحة من نفس الجوال والمشكلة تظهر عندك، وانتظر النتائج ثم صوّر الشاشة أو اكتبها للدعم</p>
+<div id="out"></div>
+<div class="note" id="summary"></div>
+<script>
+var TESTS=[
+  ['s1','الموقع الحالي (GitHub Pages)','https://ham10552-collab.github.io/flour/diag.html'],
+  ['s2','مكتبات Firebase (من موقعنا الآن)','https://ham10552-collab.github.io/flour/vendor/firebase-app.js'],
+  ['s3','مكتبات Firebase (من جوجل gstatic)','https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'],
+  ['s4','خادم المصادقة (تسجيل الدخول)','https://identitytoolkit.googleapis.com/'],
+  ['s5','خادم المصادقة (التوكن)','https://securetoken.googleapis.com/'],
+  ['s6','خادم قاعدة البيانات (البيانات)','https://firestore.googleapis.com/'],
+  ['s7','خادم تحديث البريد/الرموز','https://www.googleapis.com/']
+];
+function row(id,label,url){
+  var d=document.createElement('div');d.className='row';d.id=id;
+  d.innerHTML='<span>'+label+'<div class="url">'+url+'</div></span><span class="badge wait" id="b-'+id+'">جاري الفحص…</span>';
+  document.getElementById('out').appendChild(d);
+}
+function setBadge(id,cls,txt){var b=document.getElementById('b-'+id);b.className='badge '+cls;b.textContent=txt;}
+function chk(id,url){
+  setBadge(id,'wait','جاري الفحص…');
+  var done=false;
+  var t=setTimeout(function(){if(!done){done=true;setBadge(id,'bad','✗ ما وصله — الشبكة محجوبة/مقطوعة');}},12000);
+  fetch(url,{mode:'cors',cache:'no-store'}).then(function(r){
+    if(done)return;done=true;clearTimeout(t);
+    setBadge(id,'ok','✓ متصل ('+r.status+')');
+  }).catch(function(e){
+    if(done)return;done=true;clearTimeout(t);
+    setBadge(id,'bad','✗ ما وصله — '+e.message);
+  });
+}
+TESTS.forEach(function(t){row(t[0],t[1],t[2]);});
+TESTS.forEach(function(t){chk(t[0],t[2]);});
+setTimeout(function(){
+  var ok=0,bad=0;
+  TESTS.forEach(function(t){
+    var b=document.getElementById('b-'+t[0]);
+    if(b.className.indexOf('ok')>=0)ok++;else bad++;
+  });
+  var s=document.getElementById('summary');
+  if(bad===0)s.textContent='النتيجة: كلشي سليم — المشكلة بغير مكان. جرّب تسجيل الخروج والدخول ثانية، أو كنس كاش المتصفح.';
+  else if(ok>=3&&bad<=2)s.textContent='النتيجة: بعض الخوادم محجوبة من شبكتك — اقلب على VPN أو بدّل بين البيانات/الواي فاي وجرّب ثانية.';
+  else s.textContent='النتيجة: أغلب الخوادم محجوبة/مقطوعة من شبكتك — الحل VPN (مثل تطبيق 1.1.1.1 مجاني) أو بدّل الشبكة.';
+},16000);
+</script>
+</body>
+</html>
