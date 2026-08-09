@@ -285,11 +285,7 @@ input[type=date]{direction:ltr; text-align:right}
 </div>
 <div id="toast"></div>
 
-<script src="firebase-config.js"></script>
-<script type="module">
-import { initializeApp } from "./vendor/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "./vendor/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "./vendor/firebase-firestore.js";
+<script>
 
 var LS_CACHE='flour_cache_';
 var MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -306,37 +302,92 @@ function normDB(d){
 }
 
 var DB=freshDB();
-var CFG_MISSING=false,FIRE=null,AUTH='boot',UID=null,UNSUB=null,USER_EMAIL='',SAVE_TIMER=null,SYNC_WATCH=null,_dirty=false;
+var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false;
 
-function initFire(){
-  try{
-    var cfg=window.FIREBASE_CONFIG;
-    if(!cfg||JSON.stringify(cfg).indexOf('YOUR_')>=0){CFG_MISSING=true;return;}
-    var app=initializeApp(cfg);
-    FIRE={auth:getAuth(app),db:getFirestore(app)};
-  }catch(e){CFG_MISSING=true;}
+function bytesToB64(buf){
+  var s='',u8=new Uint8Array(buf);
+  for(var i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));
+  return btoa(s);
+}
+function b64ToBytes(s){return Uint8Array.from(atob(s),function(c){return c.charCodeAt(0);});}
+function sha(s){
+  return crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))
+    .then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join('');});
+}
+function deriveKey(em,ps){
+  var salt=em.toLowerCase().trim();
+  return crypto.subtle.importKey('raw',new TextEncoder().encode(salt+'|'+ps),{name:'PBKDF2'},false,['deriveKey'])
+    .then(function(k){return crypto.subtle.deriveKey({name:'PBKDF2',salt:new TextEncoder().encode('flour-salt-'+salt),iterations:50000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);});
+}
+function encDb(d,key){
+  var iv=crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,new TextEncoder().encode(JSON.stringify(d)))
+    .then(function(ct){return {iv:bytesToB64(iv),c:bytesToB64(ct)};});
+}
+function decDb(p,key){
+  return crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytes(p.iv)},key,b64ToBytes(p.c))
+    .then(function(plain){return JSON.parse(new TextDecoder().decode(plain));})
+    .catch(function(){return null;});
+}
+function blobId(em){return sha('flour-blob-'+em.toLowerCase().trim());}
+function cloudGet(){
+  if(!CLOUD_KEY)return Promise.resolve({st:404});
+  return fetch('https://jsonblob.com/api/jsonBlob/'+CLOUD_KEY,{method:'GET'}).then(function(r){
+    if(r.status===200)return r.json().then(function(j){return {st:200,etag:r.headers.get('ETag'),j:j};});
+    return {st:r.status};
+  }).catch(function(){return {st:0};});
+}
+function cloudCreate(p){
+  return fetch('https://jsonblob.com/api/jsonBlob',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
+    .then(function(r){
+      if(r.status===201){
+        var loc=r.headers.get('Location');
+        if(loc)CLOUD_KEY=loc.split('/').pop();
+        CLOUD_ETAG=r.headers.get('ETag');
+        return true;
+      }
+      return false;
+    }).catch(function(){return false;});
+}
+function cloudPut(p){
+  if(!CLOUD_KEY)return cloudCreate(p);
+  var h={'Content-Type':'application/json'};
+  if(CLOUD_ETAG)h['If-Match']=CLOUD_ETAG;
+  return fetch('https://jsonblob.com/api/jsonBlob/'+CLOUD_KEY,{method:'PUT',headers:h,body:JSON.stringify(p)})
+    .then(function(r){
+      if(r.status===200||r.status===201){CLOUD_ETAG=r.headers.get('ETag');return true;}
+      if(r.status===412){
+        return cloudGet().then(function(g){
+          if(g.st===200&&g.etag){CLOUD_ETAG=g.etag;return cloudPut(p);}
+          if(g.st===404)return cloudCreate(p);
+          return false;
+        });
+      }
+      if(r.status===404)return cloudCreate(p);
+      return false;
+    }).catch(function(){return false;});
 }
 
+function cacheWrite(){try{localStorage.setItem(LS_CACHE+'e:'+USER_EMAIL.toLowerCase(),JSON.stringify(DB));}catch(e){}}
 function save(){
-  try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
-  if(!FIRE||!FIRE.docRef)return;
+  cacheWrite();
+  if(AUTH!=='ready')return;
   _dirty=true;
   clearTimeout(SAVE_TIMER);
-  SAVE_TIMER=setTimeout(function(){
-    FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){_dirty=false;clearBanner();}).catch(function(e){
-      showBanner('تعذر رفع التعديلات للسحابة — سيُعاد المحاولة. تأكد من النت','err');
-      clearTimeout(SAVE_TIMER);
-      SAVE_TIMER=setTimeout(save,4000);
-    });
-  },250);
+  SAVE_TIMER=setTimeout(saveNow,250);
 }
 function saveNow(){
-  try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
-  if(!FIRE||!FIRE.docRef)return Promise.resolve();
+  cacheWrite();
+  if(AUTH!=='ready')return Promise.resolve();
   clearTimeout(SAVE_TIMER);
   _dirty=true;
-  return FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).then(function(){_dirty=false;clearBanner();}).catch(function(e){
-    showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بجوالك حالياً فقط','err');
+  return deriveKey(USER_EMAIL,PS).then(function(key){
+    return encDb(DB,key);
+  }).then(function(p){
+    return CLOUD_KEY?cloudPut(p):cloudCreate(p);
+  }).then(function(ok){
+    if(ok){_dirty=false;clearBanner();}
+    else{showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بجوالك حالياً فقط','err');}
   });
 }
 function newId(){return ++DB.seq;}
@@ -624,22 +675,6 @@ function reportHtml(){
   return h;
 }
 
-function configHtml(){
-  return '<div class="auth-wrap"><div class="auth-card cfg-card">'
-    +'<div class="auth-logo">'+I.store+'</div>'
-    +'<h2>تحتاج إعداد Firebase</h2>'
-    +'<p class="auth-sub">البرنامج جاهز، بس لازم تربط مشروع Firebase مجاني</p>'
-    +'<ol>'
-    +'<li>ادخل <b>console.firebase.google.com</b> بحساب جيميل وسوي مشروع جديد</li>'
-    +'<li>من <b>Build → Authentication</b> فعّل طريقة التسجيل <b>Email/Password</b></li>'
-    +'<li>من <b>Build → Firestore Database</b> سوي قاعدة بيانات جديدة</li>'
-    +'<li>من <b>Project settings → Your apps → Web (رمز الويب)</b> انسخ إعدادات التطبيق</li>'
-    +'<li>افتح ملف <b>firebase-config.js</b> بنفس مجلد البرنامج ولصق الإعدادات مكان العبارات</li>'
-    +'<li>من <b>Firestore Database → Rules</b> غير القواعد: السماح للداخلين بس بقراءة/كتابة ملفهم (أرسلي التعليمة)</li>'
-    +'<li>احفظ وحدّث هذه الصفحة</li>'
-    +'</ol></div></div>';
-}
-
 function loginHtml(){
   return '<div class="auth-wrap"><div class="auth-card">'
     +'<div class="auth-logo">'+I.store+'</div>'
@@ -655,20 +690,12 @@ function loginHtml(){
 }
 
 function authMsg(e){
-  var c=e&&e.code?e.code:'';
-  var m={
-    'auth/invalid-email':'البريد الإلكتروني غير صحيح',
-    'auth/user-not-found':'ماكو حساب بهذا البريد',
-    'auth/wrong-password':'كلمة المرور غلط',
-    'auth/invalid-credential':'البريد أو كلمة المرور غلط',
-    'auth/invalid-login-credentials':'البريد أو كلمة المرور غلط',
-    'auth/email-already-in-use':'هذا البريد مسجل مسبقاً — ادخل مباشرة',
-    'auth/weak-password':'كلمة المرور قصيرة (ع الأقل 6 أحرف)',
-    'auth/too-many-requests':'حاول بعدين — محاولات كثيرة',
-    'auth/network-request-failed':'لا يوجد اتصال بالإنترنت',
-    'auth/operation-not-allowed':'التسجيل بالبريد غير مفعل — فعله من Firebase'
-  };
-  return m[c]||(e&&e.message?e.message:'حصل خطأ — حاول مرة ثانية');
+  if(e&&e.err==='noacc')return 'ما عندك حساب بهذا البريد — اضغط تسجيل حساب جديد';
+  if(e&&e.err==='wrong')return 'كلمة المرور غلط — أو لو نسيت كلمة المرور فبياناتك ما تترجع (مفتاحك الخاص)';
+  if(e&&e.err==='taken')return 'هذا البريد مسجل مسبقاً — ادخل بكلمة مروره';
+  if(e&&e.err==='net')return 'لا يوجد اتصال بالإنترنت — جرّب مرة أخرى';
+  if(e&&e.err==='timeout')return 'الاتصال بطيء أو مقطوع — تأكد من النت وحاول مجدداً';
+  return 'حصل خطأ — حاول مرة ثانية';
 }
 
 function bindAuth(){
@@ -676,76 +703,116 @@ function bindAuth(){
   var btnL=document.getElementById('btnLogin'),btnS=document.getElementById('btnSignup'),btnR=document.getElementById('btnReset');
   function showErr(m){if(errEl)errEl.textContent=m;}
   function creds(){return {em:document.getElementById('authEmail').value.trim(),ps:document.getElementById('authPass').value};}
-  function withTimeout(p,restore){
-    var t=setTimeout(function(){restore();showErr('الاتصال بطيء أو مقطوع — تأكد من النت وحاول مجدداً');},20000);
-    p.then(function(){clearTimeout(t);}).catch(function(e){clearTimeout(t);restore();showErr(authMsg(e));});
-  }
   function online(){if(!navigator.onLine){showErr('لا يوجد اتصال بالإنترنت');return false;}return true;}
+  function finishLogin(em){
+    USER_EMAIL=em.toLowerCase();
+    startSession();
+  }
+  function tryAccount(em,ps,mode){
+    return blobId(em).then(function(id){
+      CLOUD_KEY=id;
+      return cloudGet();
+    }).then(function(g){
+      if(g.st===404){return {st:'noc'};}
+      if(g.st===200){
+        return deriveKey(em,ps).then(decDb.bind(null,g.j)).then(function(d){
+          if(d)return {st:'ok',d:d,etag:g.etag};
+          return {st:'wrong'};
+        });
+      }
+      return {st:'net'};
+    }).catch(function(){return {st:'net'};});
+  }
   if(btnL)btnL.onclick=function(){
     var c=creds();
     if(!c.em||!c.ps){showErr('اكتب البريد وكلمة المرور');return;}
     if(!online())return;
     showErr('');btnL.textContent='جاري الدخول...';
-    withTimeout(signInWithEmailAndPassword(FIRE.auth,c.em,c.ps),function(){btnL.textContent='دخول';});
+    var t=setTimeout(function(){btnL.textContent='دخول';showErr(authMsg({err:'timeout'}));},20000);
+    tryAccount(c.em,c.ps,'login').then(function(r){
+      clearTimeout(t);btnL.textContent='دخول';
+      if(r.st==='ok'){DB=normDB(r.d);CLOUD_ETAG=r.etag;finishLogin(c.em);}
+      else if(r.st==='noc'){PS='';showErr(authMsg({err:'noacc'}));}
+      else if(r.st==='wrong'){PS='';showErr(authMsg({err:'wrong'}));}
+      else showErr(authMsg({err:'net'}));
+    });
   };
   if(btnS)btnS.onclick=function(){
     var c=creds();
     if(!c.em||!c.ps){showErr('اكتب البريد وكلمة المرور');return;}
     if(!online())return;
     showErr('');btnS.textContent='جاري إنشاء الحساب...';
-    withTimeout(createUserWithEmailAndPassword(FIRE.auth,c.em,c.ps),function(){btnS.textContent='تسجيل حساب جديد';});
+    var t=setTimeout(function(){btnS.textContent='تسجيل حساب جديد';showErr(authMsg({err:'timeout'}));},20000);
+    tryAccount(c.em,c.ps,'signup').then(function(r){
+      clearTimeout(t);btnS.textContent='تسجيل حساب جديد';
+      if(r.st==='noc'){finishLogin(c.em);toast('تم إنشاء حسابك — بياناتك راح تُرفع للسحابة');}
+      else if(r.st==='ok'){PS='';showErr(authMsg({err:'taken'}));}
+      else if(r.st==='wrong'){DB=normDB(r.d);PS=c.ps;finishLogin(c.em);}
+      else showErr(authMsg({err:'net'}));
+    });
   };
   if(btnR)btnR.onclick=function(){
-    var c=creds();
-    if(!c.em){showErr('اكتب بريدك أول');return;}
-    if(!online())return;
-    showErr('');btnR.textContent='جاري الإرسال...';
-    withTimeout(sendPasswordResetEmail(FIRE.auth,c.em).then(function(){toast('رابط التغيير انرسل لبريدك');}),function(){btnR.textContent='نسيت كلمة المرور؟';});
+    showErr('كلمة المرور هي مفتاح بياناتك الخاص ولا يمكن استرجاعها — احفظها جيداً');
   };
 }
 
-function startSession(user){
-  UID=user.uid;USER_EMAIL=user.email||'';AUTH='ready';
+function startSession(){
+  AUTH='ready';
   var cached=null;
-  try{var r=localStorage.getItem(LS_CACHE+UID);if(r)cached=JSON.parse(r);}catch(e){}
+  try{var r=localStorage.getItem(LS_CACHE+'e:'+USER_EMAIL.toLowerCase());if(r)cached=JSON.parse(r);}catch(e){}
+  if(!(cached&&Array.isArray(cached.mills))){
+    for(var k=0;k<localStorage.length;k++){
+      var key=localStorage.key(k);
+      if(key&&key.indexOf('flour_cache_')===0){
+        try{var o=JSON.parse(localStorage.getItem(key));
+          if(o&&Array.isArray(o.mills)&&(!cached||(o.txs||[]).length>(cached.txs||[]).length))cached=o;
+        }catch(er){}
+      }
+    }
+  }
   DB=(cached&&Array.isArray(cached.mills))?normDB(cached):freshDB();
   S.screen='home';S.year=new Date().getFullYear();S.millId=null;S.agentId=null;
-  FIRE.docRef=doc(FIRE.db,'users',UID);
-  saveNow();
-  attachSync();
-  getDoc(FIRE.docRef).then(function(snap){
-    if(snap.exists()&&isDoc(snap.data())){
-      var d=applyDoc(snap.data());
-      if(JSON.stringify(d)!==JSON.stringify(DB)){DB=d;render();}
-    }else{
-      FIRE.docRef.set(JSON.parse(JSON.stringify(DB))).catch(function(){});
-    }
-    try{localStorage.setItem(LS_CACHE+UID,JSON.stringify(DB));}catch(e){}
-    render();
-  }).catch(function(){render();});
+  render();
+  syncCloud();
 }
-function attachSync(){
-  if(!FIRE||!FIRE.docRef)return;
+function syncCloud(){
+  if(AUTH!=='ready')return;
   clearTimeout(SYNC_WATCH);
   SYNC_WATCH=setTimeout(function(){
-    showBanner('جاري الاتصال بالسحابة… إن استمرت المشكلة تأكد من النت أو اسمح للاتصال','err');
-  },7000);
-  if(UNSUB)UNSUB();
-  UNSUB=onSnapshot(FIRE.docRef,function(cur){
-    if(!cur.exists())return;
-    var d=applyDoc(cur.data());
-    if(JSON.stringify(d)!==JSON.stringify(DB)){DB=d;render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
     clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
+    showBanner('جاري الاتصال بالسحابة… إن استمرت المشكلة تأكد من النت','err');
+  },8000);
+  cloudGet().then(function(g){
+    clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
+    if(g.st===200){
+      return deriveKey(USER_EMAIL,PS).then(decDb.bind(null,g.j)).then(function(d){
+        if(!d)return;
+        if(JSON.stringify(d)!==JSON.stringify(DB)){DB=normDB(d);cacheWrite();render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
+        CLOUD_ETAG=g.etag;
+        clearBanner();
+        if(_dirty)saveNow();
+      });
+    }
+    if(g.st===404){
+      if(DB&&DB.mills&&(DB.mills.length||DB.txs.length||DB.agents.length))saveNow();
+      else clearBanner();
+      return;
+    }
     clearBanner();
-  },function(){
-    clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
     showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بهذا الجوال فقط','err');
-    setTimeout(function(){if(AUTH==='ready')attachSync();},5000);
   });
+}
+function attachSync(){
+  clearTimeout(CLOUD_POLL);
+  CLOUD_POLL=setTimeout(function(){
+    if(AUTH!=='ready')return;
+    syncCloud();
+    attachSync();
+  },15000);
 }
 function syncNow(){
   MENU.classList.add('hidden');
-  saveNow().then(function(){attachSync();});
+  saveNow().then(function(){syncCloud();attachSync();});
   toast('تم إرسال طلب المزامنة');
 }
 function showBanner(msg,cls){
@@ -762,9 +829,10 @@ function isDoc(d){return d&&Array.isArray(d.mills);}
 function applyDoc(d){return normDB(d);}
 
 function endSession(){
-  if(UNSUB){UNSUB();UNSUB=null;}
   clearTimeout(SAVE_TIMER);
-  FIRE.docRef=null;AUTH='login';UID=null;USER_EMAIL='';
+  clearTimeout(CLOUD_POLL);
+  clearTimeout(SYNC_WATCH);
+  AUTH='login';UID=null;USER_EMAIL='';PS='';CLOUD_KEY=null;CLOUD_ETAG=null;_dirty=false;
   S.screen='home';S.millId=null;S.agentId=null;
   DB=freshDB();
   render();
@@ -775,12 +843,6 @@ function render(){
   var bb=document.getElementById('backBtn');
   var hb=document.getElementById('hdrBtns');
   var oldFab=document.querySelector('.fab');if(oldFab)oldFab.remove();
-  if(CFG_MISSING){
-    title.textContent='دفتر الطحين';
-    bb.classList.add('hidden');hb.classList.add('hidden');MENU.classList.add('hidden');
-    MAIN.innerHTML=configHtml();
-    return;
-  }
   if(AUTH!=='ready'){
     title.textContent='دفتر الطحين';
     bb.classList.add('hidden');hb.classList.add('hidden');MENU.classList.add('hidden');
@@ -919,7 +981,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v2</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1025,7 +1087,7 @@ document.addEventListener('click',function(ev){
   else if(act==='del-agent'){delAgent(id);}
   else if(act==='del-tx'){delTx(id);}
   else if(act==='toggle-del'){toggleDelivered(id);}
-  else if(act==='signout'){MENU.classList.add('hidden');signOut(FIRE.auth).then(function(){}).catch(function(){});}
+  else if(act==='signout'){MENU.classList.add('hidden');endSession();}
   else if(act==='currency'){openCurrency();}
   else if(act==='export'){exportBackup();}
   else if(act==='import'){MENU.classList.add('hidden');FILE_IN.click();}
@@ -1036,16 +1098,9 @@ document.getElementById('backBtn').innerHTML=I.back;
 
 function boot(){
   window.addEventListener('error',function(ev){showBanner('حصل خطأ تقني — صوّر الرسالة وخبّرنا: '+(ev.message||'غير معروف'),'err');});
-  window.addEventListener('online',function(){syncNow();});
-  document.addEventListener('visibilitychange',function(){if(!document.hidden&&_dirty)saveNow();});
+  window.addEventListener('online',function(){if(AUTH==='ready')syncNow();});
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&AUTH==='ready'){if(_dirty)saveNow();attachSync();}});
   setInterval(function(){if(AUTH==='ready'&&_dirty)saveNow();},15000);
-  initFire();
-  if(!CFG_MISSING){
-    onAuthStateChanged(FIRE.auth,function(user){
-      if(user){if(AUTH!=='ready')startSession(user);}
-      else endSession();
-    });
-  }
   render();
 }
 boot();

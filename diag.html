@@ -25,12 +25,9 @@ p.sub{color:#8a7a5f;font-size:13px;margin:0 0 16px}
 <script>
 var TESTS=[
   ['s1','الموقع الحالي (GitHub Pages)','https://ham10552-collab.github.io/flour/diag.html'],
-  ['s2','مكتبات Firebase (من موقعنا الآن)','https://ham10552-collab.github.io/flour/vendor/firebase-app.js'],
-  ['s3','مكتبات Firebase (من جوجل gstatic)','https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'],
-  ['s4','خادم المصادقة (تسجيل الدخول)','https://identitytoolkit.googleapis.com/'],
-  ['s5','خادم المصادقة (التوكن)','https://securetoken.googleapis.com/'],
-  ['s6','خادم قاعدة البيانات (البيانات)','https://firestore.googleapis.com/'],
-  ['s7','خادم تحديث البريد/الرموز','https://www.googleapis.com/']
+  ['s2','سحابة البيانات الجديدة','https://jsonblob.com/api/jsonBlob'],
+  ['s3','خدمة Cloudflare (التي تستضيف سحابة البيانات)','https://cloudflare.com/'],
+  ['s4','خادم الوكلاء/المفاتيح العامة','https://www.gstatic.com/']
 ];
 function row(id,label,url){
   var d=document.createElement('div');d.className='row';d.id=id;
@@ -60,8 +57,8 @@ setTimeout(function(){
   });
   var s=document.getElementById('summary');
   if(bad===0)s.textContent='النتيجة: كلشي سليم — المشكلة بغير مكان. جرّب تسجيل الخروج والدخول ثانية، أو كنس كاش المتصفح.';
-  else if(ok>=3&&bad<=2)s.textContent='النتيجة: بعض الخوادم محجوبة من شبكتك — اقلب على VPN أو بدّل بين البيانات/الواي فاي وجرّب ثانية.';
-  else s.textContent='النتيجة: أغلب الخوادم محجوبة/مقطوعة من شبكتك — الحل VPN (مثل تطبيق 1.1.1.1 مجاني) أو بدّل الشبكة.';
+  else if(ok>=3&&bad<=2)s.textContent='النتيجة: أغلب الخوادم توصل — جرّب تحديث صفحة التطبيق نفسها ثانية.';
+  else s.textContent='النتيجة: أغلب الخوادم محجوبة/مقطوعة من شبكتك — اقلب على VPN أو بدّل بين البيانات/الواي فاي وجرّب ثانية.';
 },16000);
 </script>
 </body>
