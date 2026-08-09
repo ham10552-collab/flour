@@ -676,22 +676,31 @@ function bindAuth(){
   var btnL=document.getElementById('btnLogin'),btnS=document.getElementById('btnSignup'),btnR=document.getElementById('btnReset');
   function showErr(m){if(errEl)errEl.textContent=m;}
   function creds(){return {em:document.getElementById('authEmail').value.trim(),ps:document.getElementById('authPass').value};}
+  function withTimeout(p,restore){
+    var t=setTimeout(function(){restore();showErr('الاتصال بطيء أو مقطوع — تأكد من النت وحاول مجدداً');},20000);
+    p.then(function(){clearTimeout(t);}).catch(function(e){clearTimeout(t);restore();showErr(authMsg(e));});
+  }
+  function online(){if(!navigator.onLine){showErr('لا يوجد اتصال بالإنترنت');return false;}return true;}
   if(btnL)btnL.onclick=function(){
     var c=creds();
     if(!c.em||!c.ps){showErr('اكتب البريد وكلمة المرور');return;}
+    if(!online())return;
     showErr('');btnL.textContent='جاري الدخول...';
-    signInWithEmailAndPassword(FIRE.auth,c.em,c.ps).catch(function(e){btnL.textContent='دخول';showErr(authMsg(e));});
+    withTimeout(signInWithEmailAndPassword(FIRE.auth,c.em,c.ps),function(){btnL.textContent='دخول';});
   };
   if(btnS)btnS.onclick=function(){
     var c=creds();
     if(!c.em||!c.ps){showErr('اكتب البريد وكلمة المرور');return;}
+    if(!online())return;
     showErr('');btnS.textContent='جاري إنشاء الحساب...';
-    createUserWithEmailAndPassword(FIRE.auth,c.em,c.ps).catch(function(e){btnS.textContent='تسجيل حساب جديد';showErr(authMsg(e));});
+    withTimeout(createUserWithEmailAndPassword(FIRE.auth,c.em,c.ps),function(){btnS.textContent='تسجيل حساب جديد';});
   };
   if(btnR)btnR.onclick=function(){
     var c=creds();
     if(!c.em){showErr('اكتب بريدك أول');return;}
-    sendPasswordResetEmail(FIRE.auth,c.em).then(function(){toast('رابط التغيير انرسل لبريدك');}).catch(function(e){showErr(authMsg(e));});
+    if(!online())return;
+    showErr('');btnR.textContent='جاري الإرسال...';
+    withTimeout(sendPasswordResetEmail(FIRE.auth,c.em).then(function(){toast('رابط التغيير انرسل لبريدك');}),function(){btnR.textContent='نسيت كلمة المرور؟';});
   };
 }
 
