@@ -302,7 +302,7 @@ function normDB(d){
 }
 
 var DB=freshDB();
-var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false;
+var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false,_codeShown=false,REG='';
 
 function bytesToB64(buf){
   var s='',u8=new Uint8Array(buf);
@@ -386,7 +386,13 @@ function saveNow(){
   }).then(function(p){
     return CLOUD_KEY?cloudPut(p):cloudCreate(p);
   }).then(function(ok){
-    if(ok){_dirty=false;clearBanner();}
+    if(ok){
+      _dirty=false;clearBanner();
+      if(!_codeShown&&AUTH==='ready'&&CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0){
+        _codeShown=true;
+        setTimeout(function(){alert('احفظ رمز الربط هذا (لأي جوال ثانٍ بحسابك):\n\n'+CLOUD_KEY+'\n\nوأيضاً من القائمة: رمز الربط للحساب');},800);
+      }
+    }
     else{showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بجوالك حالياً فقط','err');}
   });
 }
@@ -683,6 +689,7 @@ function loginHtml(){
     +'<label class="field"><span>البريد الإلكتروني</span><input id="authEmail" type="email" placeholder="example@gmail.com" autocomplete="email"></label>'
     +'<label class="field"><span>كلمة المرور</span><input id="authPass" type="password" placeholder="••••••••" autocomplete="current-password"></label>'
     +'<div id="authErr" class="auth-err"></div>'
+    +'<label class="field" style="margin-top:10px"><span>رمز الربط (اختياري — للجوال الثاني)</span><input id="authCode" type="text" placeholder="الصقه هنا إذا عندك رمز من جوالك الأول" autocomplete="off"></label>'
     +'<button class="btn primary btn-block" id="btnLogin">دخول</button>'
     +'<button class="btn ghost btn-block" id="btnSignup">تسجيل حساب جديد</button>'
     +'<button class="btn link" id="btnReset">نسيت كلمة المرور؟</button>'
@@ -702,14 +709,18 @@ function bindAuth(){
   var errEl=document.getElementById('authErr');
   var btnL=document.getElementById('btnLogin'),btnS=document.getElementById('btnSignup'),btnR=document.getElementById('btnReset');
   function showErr(m){if(errEl)errEl.textContent=m;}
-  function creds(){return {em:document.getElementById('authEmail').value.trim(),ps:document.getElementById('authPass').value};}
+  function creds(){
+    var codeEl=document.getElementById('authCode');
+    return {em:document.getElementById('authEmail').value.trim(),ps:document.getElementById('authPass').value,code:codeEl?codeEl.value.trim():''};
+  }
   function online(){if(!navigator.onLine){showErr('لا يوجد اتصال بالإنترنت');return false;}return true;}
   function finishLogin(em){
     USER_EMAIL=em.toLowerCase();
     startSession();
   }
   function tryAccount(em,ps,mode){
-    return blobId(em).then(function(id){
+    REG=creds().code;
+    return (REG?Promise.resolve(REG):blobId(em)).then(function(id){
       CLOUD_KEY=id;
       return cloudGet();
     }).then(function(g){
@@ -832,7 +843,7 @@ function endSession(){
   clearTimeout(SAVE_TIMER);
   clearTimeout(CLOUD_POLL);
   clearTimeout(SYNC_WATCH);
-  AUTH='login';UID=null;USER_EMAIL='';PS='';CLOUD_KEY=null;CLOUD_ETAG=null;_dirty=false;
+  AUTH='login';UID=null;USER_EMAIL='';PS='';CLOUD_KEY=null;CLOUD_ETAG=null;_dirty=false;REG='';_codeShown=false;
   S.screen='home';S.millId=null;S.agentId=null;
   DB=freshDB();
   render();
@@ -975,13 +986,15 @@ var MENU=document.getElementById('menu');
 function buildMenu(){
   MENU.innerHTML=(USER_EMAIL?'<div class="menu-user">'+esc(USER_EMAIL)+'</div>':'')
     +'<button data-act="add-year">إضافة سنة جديدة</button>'
+    +'<button data-act="show-code">رمز الربط للحساب</button>'
+    +'<button data-act="link-help">كيف أربط جوالاً ثانياً؟</button>'
     +'<button data-act="sync">مزامنة مع السحابة الآن</button>'
     +'<button data-act="signout">تسجيل الخروج</button>'
     +'<button data-act="currency">رمز العملة</button>'
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.1</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1075,6 +1088,8 @@ document.addEventListener('click',function(ev){
   else if(act==='year'){S.year=+el.dataset.year;render();}
   else if(act==='add-year'){openYearSheet();}
   else if(act==='sync'){syncNow();}
+  else if(act==='show-code'){if(CLOUD_KEY)alert('رمز ربط جهازك مع السحابة:\n\n'+CLOUD_KEY+'\n\nمن الجوال الثاني: بالصقه في حقل "رمز الربط" بشاشة الدخول بعدين ادخل بنفس البريد وكلمة المرور');else toast('حفظ أول تعديل ثم اطلب الرمز');}
+  else if(act==='link-help'){alert('لربط جوال ثانٍ بنفس الحساب:\n1) من هذا الجوال: القائمة → رمز الربط للحساب\n2) بالجوال الثاني: بشاشة الدخول الصق الرمز بحقل "رمز الربط"\n3) ادخل بنفس البريد وكلمة المرور — وستتجمع بياناتك معاً');}
   else if(act==='open-mill'){go('agents',{millId:id});}
   else if(act==='open-agent'){go('tx',{agentId:id});}
   else if(act==='add-mill'){openMillSheet(null);}
