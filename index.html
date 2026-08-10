@@ -814,6 +814,7 @@ function bindAuth(){
   };
   function finishLogin(em){
     USER_EMAIL=em.toLowerCase();
+    saveSession();
     startSession();
   }
   function tryAccount(em,ps,mode){
@@ -947,11 +948,14 @@ function endSession(){
   clearTimeout(SAVE_TIMER);
   clearTimeout(CLOUD_POLL);
   clearTimeout(SYNC_WATCH);
+  clearSession();
   AUTH='login';UID=null;USER_EMAIL='';PS='';CLOUD_KEY=null;CLOUD_ETAG=null;_dirty=false;REG='';_codeShown=false;
   S.screen='home';S.millId=null;S.agentId=null;
   DB=freshDB();
   render();
 }
+function saveSession(){try{localStorage.setItem('flour_ss',JSON.stringify([USER_EMAIL.toLowerCase(),PS]));}catch(e){}}
+function clearSession(){try{localStorage.removeItem('flour_ss');}catch(e){}}
 
 function render(){
   var title=document.getElementById('title');
@@ -1107,7 +1111,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.5</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1238,6 +1242,14 @@ function boot(){
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&AUTH==='ready'){if(_dirty)saveNow();attachSync();}});
   setInterval(function(){if(AUTH==='ready'&&_dirty)saveNow();},15000);
   render();
+  var ss=null;try{ss=JSON.parse(localStorage.getItem('flour_ss')||'null');}catch(e){}
+  if(ss&&ss[0]&&ss[1]){
+    try{
+      document.getElementById('authEmail').value=ss[0];
+      document.getElementById('authPass').value=ss[1];
+      document.getElementById('btnLogin').click();
+    }catch(e){}
+  }
 }
 boot();
 </script>
