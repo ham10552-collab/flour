@@ -382,7 +382,18 @@ function cloudPut(p){
     }).catch(function(){return false;});
 }
 
-function cacheWrite(){try{localStorage.setItem(LS_CACHE+'e:'+USER_EMAIL.toLowerCase(),JSON.stringify(DB));}catch(e){}}
+function cacheWrite(){
+  try{
+    var k=LS_CACHE+'e:'+USER_EMAIL.toLowerCase(),d={},ss=null;
+    if(USER_EMAIL&&PS)ss=[USER_EMAIL.toLowerCase(),PS];
+    else{
+      try{var p=JSON.parse(localStorage.getItem(k)||'null');if(p&&Array.isArray(p._ss))ss=p._ss;}catch(e){}
+    }
+    for(var key in DB)d[key]=DB[key];
+    if(ss)d._ss=ss;
+    localStorage.setItem(k,JSON.stringify(d));
+  }catch(e){}
+}
 function save(){
   cacheWrite();
   if(AUTH!=='ready')return;
@@ -956,8 +967,21 @@ function endSession(){
   DB=freshDB();
   render();
 }
-function saveSession(){try{localStorage.setItem('flour_ss',JSON.stringify([USER_EMAIL.toLowerCase(),PS]));}catch(e){}}
-function clearSession(){try{localStorage.removeItem('flour_ss');}catch(e){}}
+function saveSession(){
+  try{localStorage.setItem('flour_ss',JSON.stringify([USER_EMAIL.toLowerCase(),PS]));}catch(e){}
+  cacheWrite();
+}
+function clearSession(){
+  try{localStorage.removeItem('flour_ss');}catch(e){}
+  try{
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k&&k.indexOf(LS_CACHE)===0){
+        try{var o=JSON.parse(localStorage.getItem(k));if(o&&o._ss){delete o._ss;localStorage.setItem(k,JSON.stringify(o));}}catch(e){}
+      }
+    }
+  }catch(e){}
+}
 
 function render(){
   var title=document.getElementById('title');
@@ -1113,7 +1137,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6.2</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6.3</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1245,6 +1269,17 @@ function boot(){
   setInterval(function(){if(AUTH==='ready'&&_dirty)saveNow();},15000);
   render();
   var ss=null;try{ss=JSON.parse(localStorage.getItem('flour_ss')||'null');}catch(e){}
+  if(!ss){
+    try{
+      for(var i=0;i<localStorage.length;i++){
+        var k=localStorage.key(i);
+        if(k&&k.indexOf(LS_CACHE)===0){
+          var o=JSON.parse(localStorage.getItem(k)||'{}');
+          if(o&&Array.isArray(o._ss)&&o._ss[0]&&o._ss[1]){ss=o._ss;break;}
+        }
+      }
+    }catch(e){}
+  }
   if(ss&&ss[0]&&ss[1]){
     try{
       document.getElementById('authEmail').value=ss[0];
