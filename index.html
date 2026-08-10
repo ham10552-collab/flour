@@ -344,15 +344,18 @@ function decDb(p,key){
     .catch(function(){return null;});
 }
 function blobId(em){return sha('flour-blob-'+em.toLowerCase().trim());}
+function withTimeout(p,ms){
+  return Promise.race([p,new Promise(function(res){setTimeout(function(){res(false);},ms);})]);
+}
 function cloudGet(){
   if(!CLOUD_KEY)return Promise.resolve({st:404});
-  return fetch('https://jsonblob.com/api/jsonBlob/'+CLOUD_KEY,{method:'GET'}).then(function(r){
+  return withTimeout(fetch('https://jsonblob.com/api/jsonBlob/'+CLOUD_KEY,{method:'GET'}).then(function(r){
     if(r.status===200)return r.json().then(function(j){return {st:200,etag:r.headers.get('ETag'),j:j};});
     return {st:r.status};
-  }).catch(function(){return {st:0};});
+  }).catch(function(){return {st:0};}),12000);
 }
 function cloudCreate(p){
-  return fetch('https://jsonblob.com/api/jsonBlob',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
+  return withTimeout(fetch('https://jsonblob.com/api/jsonBlob',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
     .then(function(r){
       if(r.status===201){
         var loc=r.headers.get('Location');
@@ -361,13 +364,13 @@ function cloudCreate(p){
         return true;
       }
       return false;
-    }).catch(function(){return false;});
+    }).catch(function(){return false;}),15000);
 }
 function cloudPut(p){
   if(!CLOUD_KEY)return cloudCreate(p);
   var h={'Content-Type':'application/json'};
   if(CLOUD_ETAG)h['If-Match']=CLOUD_ETAG;
-  return fetch('https://jsonblob.com/api/jsonBlob/'+CLOUD_KEY,{method:'PUT',headers:h,body:JSON.stringify(p)})
+  return withTimeout(fetch('https://jsonblob.com/api/jsonBlob/'+CLOUD_KEY,{method:'PUT',headers:h,body:JSON.stringify(p)})
     .then(function(r){
       if(r.status===200||r.status===201){CLOUD_ETAG=r.headers.get('ETag');return true;}
       if(r.status===412){
@@ -379,7 +382,7 @@ function cloudPut(p){
       }
       if(r.status===404)return cloudCreate(p);
       return false;
-    }).catch(function(){return false;});
+    }).catch(function(){return false;}),15000);
 }
 
 function cacheWrite(){
@@ -809,6 +812,42 @@ function authMsg(e){
   return 'حصل خطأ — حاول مرة ثانية';
 }
 
+function finishLogin(em){
+  USER_EMAIL=em.toLowerCase();
+  saveSession();
+  toast('تم الدخول — أهلاً بعودتك، دفترك جاهز');
+  startSession();
+}
+function cloudTry(em,ps,mode){
+  var codeEl=document.getElementById('authCode');
+  REG=codeEl?(codeEl.value||'').trim():'';
+  return (REG?Promise.resolve(REG):blobId(em)).then(function(id){
+    CLOUD_KEY=id;
+    return cloudGet();
+  }).then(function(g){
+    if(g&&g.st===404){return {st:'noc'};}
+    if(g&&g.st===200){
+      return deriveKey(em,ps).then(decDb.bind(null,g.j)).then(function(d){
+        if(d)return {st:'ok',d:d,etag:g.etag};
+        return {st:'wrong'};
+      });
+    }
+    return {st:'net'};
+  }).catch(function(){return {st:'net'};});
+}
+function autoLogin(em,ps){
+  AUTH='login';
+  USER_EMAIL=em.toLowerCase();PS=ps;REG='';
+  showBanner('جاري فتح دفترك…');
+  cloudTry(em,ps,'login').then(function(r){
+    var cached=null;
+    try{cached=JSON.parse(localStorage.getItem(LS_CACHE+'e:'+em.toLowerCase())||'null');}catch(e){}
+    if(r&&r.st==='ok'){DB=normDB(r.d);CLOUD_ETAG=r.etag;clearBanner();finishLogin(em);}
+    else if(cached&&Array.isArray(cached.mills)){DB=normDB(cached);clearBanner();finishLogin(em);}
+    else clearBanner();
+  });
+}
+
 function bindAuth(){
   var errEl=document.getElementById('authErr');
   var btnL=document.getElementById('btnLogin'),btnS=document.getElementById('btnSignup'),btnR=document.getElementById('btnReset');
@@ -824,35 +863,13 @@ function bindAuth(){
     r.classList.remove('hidden');bC.classList.add('hidden');
     var i=document.getElementById('authCode');if(i)try{i.focus();}catch(e){}
   };
-  function finishLogin(em){
-    USER_EMAIL=em.toLowerCase();
-    saveSession();
-    toast('تم الدخول — أهلاً بعودتك، دفترك جاهز');
-    startSession();
-  }
-  function tryAccount(em,ps,mode){
-    REG=creds().code;
-    return (REG?Promise.resolve(REG):blobId(em)).then(function(id){
-      CLOUD_KEY=id;
-      return cloudGet();
-    }).then(function(g){
-      if(g.st===404){return {st:'noc'};}
-      if(g.st===200){
-        return deriveKey(em,ps).then(decDb.bind(null,g.j)).then(function(d){
-          if(d)return {st:'ok',d:d,etag:g.etag};
-          return {st:'wrong'};
-        });
-      }
-      return {st:'net'};
-    }).catch(function(){return {st:'net'};});
-  }
   if(btnL)btnL.onclick=function(){
     var c=creds();
     if(!c.em||!c.ps){showErr('اكتب البريد وكلمة المرور');return;}
     if(!online())return;
     showErr('');btnL.textContent='جاري الدخول...';
     var t=setTimeout(function(){btnL.textContent='دخول';showErr(authMsg({err:'timeout'}));},20000);
-    tryAccount(c.em,c.ps,'login').then(function(r){
+    cloudTry(c.em,c.ps,'login').then(function(r){
       clearTimeout(t);btnL.textContent='دخول';
       if(r.st==='ok'){DB=normDB(r.d);CLOUD_ETAG=r.etag;finishLogin(c.em);}
       else if(r.st==='noc'){
@@ -871,7 +888,7 @@ function bindAuth(){
     if(!online())return;
     showErr('');btnS.textContent='جاري إنشاء الحساب...';
     var t=setTimeout(function(){btnS.textContent='تسجيل حساب جديد';showErr(authMsg({err:'timeout'}));},20000);
-    tryAccount(c.em,c.ps,'signup').then(function(r){
+    cloudTry(c.em,c.ps,'signup').then(function(r){
       clearTimeout(t);btnS.textContent='تسجيل حساب جديد';
       if(r.st==='noc'){finishLogin(c.em);toast('تم إنشاء حسابك — بياناتك راح تُرفع للسحابة');}
       else if(r.st==='ok'){PS='';showErr(authMsg({err:'taken'}));}
@@ -1137,7 +1154,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6.3</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1281,11 +1298,7 @@ function boot(){
     }catch(e){}
   }
   if(ss&&ss[0]&&ss[1]){
-    try{
-      document.getElementById('authEmail').value=ss[0];
-      document.getElementById('authPass').value=ss[1];
-      document.getElementById('btnLogin').click();
-    }catch(e){}
+    autoLogin(ss[0],ss[1]);
   }
 }
 boot();
