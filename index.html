@@ -8,7 +8,8 @@
 <meta http-equiv="Expires" content="0">
 <title>دفتر الطحين</title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{
   --primary:#8A5A1F; --surface:#FAF6EF; --card:#fff; --gold:#C9A227;
@@ -407,7 +408,7 @@ function saveNow(){
         setTimeout(function(){alert('رمز الربط لربط جوالك الثاني (ينسخ من القائمة):\n\n'+CLOUD_KEY);},800);
       }
     }
-    else{showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بجوالك حالياً فقط','err');}
+    else{showBanner('لا يوجد اتصال بالسحابة الآن — بياناتك محفوظة بجوالك، وسنعيد المحاولة تلقائياً','err');}
   });
 }
 function newId(){return ++DB.seq;}
@@ -913,7 +914,7 @@ function syncCloud(){
       return;
     }
     clearBanner();
-    showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بهذا الجوال فقط','err');
+    showBanner('لا يوجد اتصال بالسحابة الآن — بياناتك محفوظة بجوالك، وسنعيد المحاولة تلقائياً','err');
   });
 }
 function attachSync(){
@@ -1106,7 +1107,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.4</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.5</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
