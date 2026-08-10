@@ -298,11 +298,20 @@ function normDB(d){
   if(!Array.isArray(d.agents))d.agents=[];
   if(!Array.isArray(d.txs))d.txs=[];
   if(!Array.isArray(d.years))d.years=[];
+  var i;
+  for(i=0;i<d.agents.length;i++){
+    if(d.agents[i].delivered===undefined)d.agents[i].delivered=0;
+    if(d.agents[i].settled===undefined)d.agents[i].settled=0;
+  }
+  for(i=0;i<d.txs.length;i++){
+    if(d.txs[i].delivered===undefined)d.txs[i].delivered=0;
+    if(d.txs[i].paid===undefined)d.txs[i].paid=0;
+  }
   return d;
 }
 
 var DB=freshDB();
-var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false,_codeShown=false,REG='';
+var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false,_codeShown=false,REG='',AGF='all';
 
 function bytesToB64(buf){
   var s='',u8=new Uint8Array(buf);
@@ -459,9 +468,64 @@ var S={screen:'home',year:new Date().getFullYear(),month:1,millId:null,agentId:n
 
 function go(screen,extra){for(var k in extra)S[k]=extra[k];S.screen=screen;render();window.scrollTo(0,0);}
 function goBack(){
-  if(S.screen==='month'||S.screen==='report')go('home');
+  if(S.screen==='month'||S.screen==='report'||S.screen==='agentsall')go('home');
   else if(S.screen==='agents'){var m=millById(S.millId);if(m)go('month',{year:m.year,month:m.month});else go('home');}
   else if(S.screen==='tx'){var a=agentById(S.agentId);if(a)go('agents',{millId:a.millId});else go('home');}
+}
+function agentFilterChips(){
+  var defs=[['all','كل الوكلاء'],['settled','حاسبتهم'],['unsettled','بعدني محاسبهم']],h='<div class="chips">';
+  for(var i=0;i<defs.length;i++)h+='<button class="chip'+(AGF===defs[i][0]?' sel':'')+'" data-act="agent-filter" data-f="'+defs[i][0]+'">'+defs[i][1]+'</button>';
+  return h+'</div>';
+}
+function agentPassesFilter(a){
+  if(AGF==='settled')return a.settled==1;
+  if(AGF==='unsettled')return a.settled!=1;
+  return true;
+}
+function agentsAllHtml(){
+  var mills=millsForYear(S.year),i,j,h=agentFilterChips();
+  var shown=0,totS={sacks:0,cost:0,revenue:0,profit:0},sCount=0,uCount=0;
+  for(i=0;i<mills.length;i++){
+    var m=mills[i],list=agentsForMill(m.id).filter(agentPassesFilter),rows=txsRowsForYear(S.year),byA={},k;
+    for(k=0;k<rows.length;k++){
+      if(rows[k].m.id!==m.id)continue;
+      var tt=txTotals(rows[k].t),e=byA[rows[k].a.id];
+      if(!e){e={sacks:0,cost:0,revenue:0,profit:0,paid:0,n:0};byA[rows[k].a.id]=e;}
+      e.sacks+=tt.sacks;e.cost+=tt.cost;e.revenue+=tt.revenue;e.profit+=tt.profit;
+      e.paid+=rows[k].t.paid?1:0;e.n++;
+    }
+    for(j=0;j<list.length;j++){
+      var a=list[j],e=byA[a.id]||{sacks:0,cost:0,revenue:0,profit:0,paid:0,n:0};
+      shown++;
+      if(a.settled==1)sCount++;else uCount++;
+      totS.sacks+=e.sacks;totS.cost+=e.cost;totS.revenue+=e.revenue;totS.profit+=e.profit;
+      h+='<div class="card tile" data-act="open-agent" data-id="'+a.id+'" data-mill="'+m.id+'">'
+        +'<div class="trow"><div class="avatar gold">'+I.person+'</div>'
+        +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        +'<div class="tname">'+esc(a.name)+'</div>'
+        +'<span class="chipbox" style="flex:none">'+I.sacks+' '+fmtSacks(e.sacks)+'</span>'
+        +'<span class="chipbox '+(a.settled==1?'ok':'warn')+'" data-act="toggle-settle" data-id="'+a.id+'">'+(a.settled==1?'حاسبته':'بعدني محاسبه')+'</span>'
+        +'<span class="chipbox" style="flex:none;color:var(--primary)" data-act="edit-agent" data-id="'+a.id+'">تعديل</span>'
+        +'</div>'
+        +'<div class="tsub">مطحنة '+esc(m.name)+' — شهر '+m.month+' للعام '+m.year+'</div></div>'
+        +'<span class="pill '+(a.settled?'on':'off')+'" data-act="toggle-settle" data-id="'+a.id+'">'+(a.settled?'حسابه وصل':'بعدني محاسبه')+'</span>'
+        +'</div>'
+        +'<div class="div"></div>'
+        +'<div class="info">'
+        +'<div class="cell"><div class="lbl">'+I.cash+'<span>الأكياس</span></div><div class="val">'+e.sacks+'</div></div>'
+        +'<div class="cell"><div class="lbl">'+I.cart+'<span>فلوس الشراء</span></div><div class="val">'+(e.n?('مدفوعة '+e.paid+' من '+e.n):'—')+'</div></div>'
+        +'<div class="cell"><div class="lbl">'+I.chart+'<span>الربح</span></div><div class="val" style="color:'+(e.profit>=0?'var(--green)':'var(--red)')+'">'+fmtMoney(e.profit)+'</div></div>'
+        +'</div></div>';
+    }
+  }
+  if(!shown)return agentFilterChips()+emptyState(I.person,'لا يوجد وكلاء بهذه الحالة','غيّر الفلترة أو أضف وكيلاً جديداً');
+  h+='<div class="grand"><div class="g-title">'+I.summarize+'<span>الملخص</span></div>'
+    +'<div class="g-row"><div class="g-cell"><div class="g-lbl">الوكلاء</div><div class="g-val">'+shown+' (حاسبتهم '+sCount+' — بعدني '+uCount+')</div></div>'
+    +'<div class="g-cell"><div class="g-lbl">الأكياس</div><div class="g-val">'+fmtSacks(totS.sacks)+'</div></div></div>'
+    +'<div class="g-row"><div class="g-cell"><div class="g-lbl">تكلفة الشراء</div><div class="g-val" style="color:#fff">'+fmtMoney(totS.cost)+'</div></div>'
+    +'<div class="g-cell"><div class="g-lbl">الربح الكلي</div><div class="g-val" style="color:'+(totS.profit>=0?'#7fe08a':'#ff8a80')+'">'+fmtMoney(totS.profit)+'</div></div></div>'
+    +'</div>';
+  return h;
 }
 
 var MAIN=document.getElementById('main');
@@ -490,6 +554,7 @@ function homeHtml(){
   for(i=0;i<rows.length;i++){var t=txTotals(rows[i].t),e=by[rows[i].m.month];
     e.t.sacks+=t.sacks;e.t.cost+=t.cost;e.t.revenue+=t.revenue;e.t.profit+=t.profit;}
   var h=yearChips(S.year);
+  h+='<div class="chips"><button class="chip" data-act="open-agentsall" data-f="all">الوكلاء — الكل</button><button class="chip" data-act="open-agentsall" data-f="settled">حاسبتهم</button><button class="chip" data-act="open-agentsall" data-f="unsettled">بعدني محاسبهم</button></div>';
   h+='<div class="card banner"><span style="display:flex">'+I.summarize+'</span><div class="b-title">إجمالي سنة '+S.year+'</div><div class="b-sacks">'+fmtSacks(yt.sacks)+'</div>'+profitLabel(yt.profit)+'</div>';
   h+='<div class="grid">';
   for(i=1;i<=12;i++){
@@ -564,9 +629,11 @@ function agentsHtml(){
       h+='<div class="card tile" data-act="open-agent" data-id="'+a.id+'">'
         +'<div class="trow">'
         +'<div class="avatar gold">'+I.person+'</div>'
-        +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;min-width:0">'
+        +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap">'
         +'<div class="tname">'+esc(a.name)+'</div>'
         +'<span class="chipbox" style="flex:none">'+I.sacks+' '+fmtSacks(e.sacks)+'</span>'
+        +'<span class="chipbox '+(a.settled?'ok':'warn')+'" style="flex:none" data-act="toggle-settle" data-id="'+a.id+'">'+(a.settled?'حاسبته':'بعدني محاسبه')+'</span>'
+        +'<span class="chipbox" style="flex:none;color:var(--primary)" data-act="edit-agent" data-id="'+a.id+'">تعديل</span>'
         +'</div>'
         +(a.phone?'<div class="tsub">'+esc(a.phone)+'</div>':'')
         +'</div>'
@@ -613,6 +680,7 @@ function txHtml(){
         +'<div class="trow">'
         +'<span style="display:flex;color:#695d4a">'+I.cal+'</span>'
         +'<span style="font-size:13px;color:#695d4a">'+fmtDate(t.date)+'</span>'
+        +'<span class="chipbox" style="flex:none;font-size:12px;color:var(--primary)" data-act="edit-tx" data-id="'+t.id+'">تعديل</span>'
         +'<div class="grow"></div>'
         +'<button class="mini" data-act="edit-tx" data-id="'+t.id+'">'+I.edit+'</button>'
         +'<button class="mini danger" data-act="del-tx" data-id="'+t.id+'">'+I.del+'</button>'
@@ -621,7 +689,8 @@ function txHtml(){
         +'<span class="chipbox">'+I.sacks+' '+fmtSacks(t.sacks)+'</span>'
         +'<span class="chipbox">'+I.cart+' شراء '+fmtMoney(t.buy)+'</span>'
         +'<span class="chipbox">'+I.cash+' بيع '+fmtMoney(t.sell)+'</span>'
-        +'<span class="chipbox '+(t.delivered?'gold':'silver')+'">'+(t.delivered?'التوصيل وصل':'التوصيل ما وصل')+'</span>'
+        +'<span class="chipbox '+(t.delivered?'gold':'silver')+'" data-act="toggle-tx-del" data-id="'+t.id+'">'+(t.delivered?'التوصيل وصل ✓':'التوصيل ما وصل')+'</span>'
+        +'<span class="chipbox '+(t.paid?'ok':'warn')+'" data-act="toggle-paid" data-id="'+t.id+'">'+(t.paid?'فلوس شراء الأكياس مدفوعة ✓':'فلوس الشراء ما مدفوعة')+'</span>'
         +'</div>'
         +(t.notes?'<div class="tsub" style="margin-top:8px">'+esc(t.notes)+'</div>':'')
         +'<div style="display:flex;justify-content:flex-end;margin-top:8px">'+profitLabel(tt.profit)+'</div>'
@@ -689,7 +758,8 @@ function loginHtml(){
     +'<label class="field"><span>البريد الإلكتروني</span><input id="authEmail" type="email" placeholder="example@gmail.com" autocomplete="email"></label>'
     +'<label class="field"><span>كلمة المرور</span><input id="authPass" type="password" placeholder="••••••••" autocomplete="current-password"></label>'
     +'<div id="authErr" class="auth-err"></div>'
-    +'<label class="field" style="margin-top:10px"><span>رمز الربط (اختياري — للجوال الثاني)</span><input id="authCode" type="text" placeholder="الصقه هنا إذا عندك رمز من جوالك الأول" autocomplete="off"></label>'
+    +'<button class="btn link" id="btnCode" type="button" style="margin-top:8px">عندي رمز ربط من جوال آخر — ألصقه</button>'
+    +'<div id="codeRow" class="hidden"><label class="field" style="margin-top:8px"><span>رمز الربط</span><input id="authCode" type="text" placeholder="الصقه هنا من الجوال الأول" autocomplete="off"></label></div>'
     +'<button class="btn primary btn-block" id="btnLogin">دخول</button>'
     +'<button class="btn ghost btn-block" id="btnSignup">تسجيل حساب جديد</button>'
     +'<button class="btn link" id="btnReset">نسيت كلمة المرور؟</button>'
@@ -714,6 +784,12 @@ function bindAuth(){
     return {em:document.getElementById('authEmail').value.trim(),ps:document.getElementById('authPass').value,code:codeEl?codeEl.value.trim():''};
   }
   function online(){if(!navigator.onLine){showErr('لا يوجد اتصال بالإنترنت');return false;}return true;}
+  var bC=document.getElementById('btnCode');
+  if(bC)bC.onclick=function(){
+    var r=document.getElementById('codeRow');if(!r)return;
+    r.classList.remove('hidden');bC.classList.add('hidden');
+    var i=document.getElementById('authCode');if(i)try{i.focus();}catch(e){}
+  };
   function finishLogin(em){
     USER_EMAIL=em.toLowerCase();
     startSession();
@@ -869,6 +945,7 @@ function render(){
   bb.classList.remove('hidden');hb.classList.remove('hidden');
   var back=false,body='',fab=null;
   if(S.screen==='report'){back=true;title.textContent='النتائج النهائية';body=reportHtml();}
+  else if(S.screen==='agentsall'){back=true;title.textContent='الوكلاء حسب المحاسبة';body=agentsAllHtml();}
   else if(S.screen==='month'){back=true;title.textContent='مطاحن شهر '+S.month;body=monthHtml();fab={act:'add-mill',label:'مطحنة جديدة'};}
   else if(S.screen==='agents'){back=true;title.textContent='الوكلاء';body=agentsHtml();fab={act:'add-agent',label:'وكيل جديد'};}
   else if(S.screen==='tx'){back=true;title.textContent='عمليات الوكيل';body=txHtml();fab={act:'add-tx',label:'عملية جديدة'};}
@@ -923,11 +1000,13 @@ function openMillSheet(existing){
 
 function openAgentSheet(existing){
   var fields=field('اسم الوكيل',textIn('name',existing?existing.name:'','مثال: أبو علي'))
-    +field('رقم الهاتف (اختياري)',textIn('phone',existing?existing.phone:'','07xx xxx xxxx'));
+    +field('رقم الهاتف (اختياري)',textIn('phone',existing?existing.phone:'','07xx xxx xxxx'))
+    +'<label class="switch-row" style="margin-top:4px"><span>حاسبته؟ حساب الوكيل وصل</span>'
+    +'<input type="checkbox" name="settled"'+(existing&&existing.settled?' checked':'')+' id="setChk"><span class="track"></span></label>';
   openSheet(existing?'تعديل الوكيل':'وكيل جديد',fields,function(o){
     if(!o.name.trim()){toast('اكتب اسم الوكيل');return false;}
-    if(existing){existing.name=o.name.trim();existing.phone=o.phone.trim();}
-    else DB.agents.push({id:newId(),millId:S.millId,name:o.name.trim(),phone:o.phone.trim()});
+    if(existing){existing.name=o.name.trim();existing.phone=o.phone.trim();existing.settled=!!o.settled;}
+    else DB.agents.push({id:newId(),millId:S.millId,name:o.name.trim(),phone:o.phone.trim(),settled:!!o.settled?1:0,delivered:0});
     save();render();return true;
   });
 }
@@ -940,12 +1019,14 @@ function openTxSheet(existing){
     +field('سعر بيع الكيس',numIn('sell',t?_dropZeros(t.sell):'','مثال: 155000'))
     +field('ملاحظات (اختياري)','<textarea name="notes" placeholder="مثال: نوع الطحين، الشحنة...">'+esc(t?t.notes:'')+'</textarea>')
     +'<label class="switch-row" style="margin-top:4px"><span>هل وصلت شحنة التوصيل؟</span>'
-    +'<input type="checkbox" name="delivered"'+(t&&t.delivered?' checked':'')+' id="delChk"><span class="track"></span></label>';
+    +'<input type="checkbox" name="delivered"'+(t&&t.delivered?' checked':'')+' id="delChk"><span class="track"></span></label>'
+    +'<label class="switch-row" style="margin-top:4px"><span>دفعت فلوس شراء الأكياس؟</span>'
+    +'<input type="checkbox" name="paid"'+(t&&t.paid?' checked':'')+' id="paidChk"><span class="track"></span></label>';
   openSheet(t?'تعديل العملية':'عملية جديدة',fields,function(o){
     var sacks=parsenum(o.sacks),buy=parsenum(o.buy),sell=parsenum(o.sell),date=o.date||todayStr();
     if(sacks<=0){toast('اكتب عدد الأكياس');return false;}
-    if(t){t.sacks=sacks;t.buy=buy;t.sell=sell;t.date=date;t.delivered=!!o.delivered;t.notes=o.notes.trim();}
-    else DB.txs.push({id:newId(),agentId:S.agentId,date:date,sacks:sacks,buy:buy,sell:sell,delivered:!!o.delivered,notes:o.notes.trim()});
+    if(t){t.sacks=sacks;t.buy=buy;t.sell=sell;t.date=date;t.delivered=!!o.delivered;t.paid=!!o.paid;t.notes=o.notes.trim();}
+    else DB.txs.push({id:newId(),agentId:S.agentId,date:date,sacks:sacks,buy:buy,sell:sell,delivered:!!o.delivered?1:0,paid:!!o.paid?1:0,notes:o.notes.trim()});
     save();render();return true;
   });
 }
@@ -994,12 +1075,13 @@ function buildMenu(){
     +'<button data-act="show-code">رمز الربط للحساب</button>'
     +'<button data-act="link-help">كيف أربط جوالاً ثانياً؟</button>'
     +'<button data-act="sync">مزامنة مع السحابة الآن</button>'
+    +'<button data-act="switchacc">تبديل الحساب</button>'
     +'<button data-act="signout">تسجيل الخروج</button>'
     +'<button data-act="currency">رمز العملة</button>'
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.1</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.3</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1107,7 +1189,13 @@ document.addEventListener('click',function(ev){
   else if(act==='del-agent'){delAgent(id);}
   else if(act==='del-tx'){delTx(id);}
   else if(act==='toggle-del'){toggleDelivered(id);}
+  else if(act==='toggle-tx-del'){var t2=DB.txs.find(function(x){return x.id===id;});if(t2){t2.delivered=t2.delivered?0:1;save();render();}}
+  else if(act==='toggle-paid'){var tt=DB.txs.find(function(x){return x.id===id;});if(tt){tt.paid=tt.paid?0:1;save();render();}}
+  else if(act==='toggle-settle'){var ag=agentById(id);if(ag){ag.settled=ag.settled?0:1;save();render();}}
+  else if(act==='agent-filter'){AGF=el.dataset.f;render();}
+  else if(act==='open-agentsall'){AGF=el.dataset.f||'all';go('agentsall');}
   else if(act==='signout'){MENU.classList.add('hidden');endSession();}
+  else if(act==='switchacc'){MENU.classList.add('hidden');endSession();}
   else if(act==='currency'){openCurrency();}
   else if(act==='export'){exportBackup();}
   else if(act==='import'){MENU.classList.add('hidden');FILE_IN.click();}
