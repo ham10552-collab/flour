@@ -743,7 +743,12 @@ function bindAuth(){
     tryAccount(c.em,c.ps,'login').then(function(r){
       clearTimeout(t);btnL.textContent='دخول';
       if(r.st==='ok'){DB=normDB(r.d);CLOUD_ETAG=r.etag;finishLogin(c.em);}
-      else if(r.st==='noc'){PS='';showErr(authMsg({err:'noacc'}));}
+      else if(r.st==='noc'){
+        var cached=null;
+        try{var lr=localStorage.getItem(LS_CACHE+'e:'+c.em.toLowerCase());if(lr)cached=JSON.parse(lr);}catch(e){}
+        if(cached&&Array.isArray(cached.mills)){DB=normDB(cached);finishLogin(c.em);}
+        else showErr('ما توجد بيانات سحابية بهذا الحساب — إن كان لك بيانات بهذا الجوال اضغط "تسجيل حساب جديد" ليُعاد رفعها، أو الصق رمز الربط من جوالك الأول');
+      }
       else if(r.st==='wrong'){PS='';showErr(authMsg({err:'wrong'}));}
       else showErr(authMsg({err:'net'}));
     });
