@@ -403,7 +403,8 @@ function saveNow(){
     if(ok){
       _dirty=false;clearBanner();
       if(CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0&&JOINCODE!==CLOUD_KEY){JOINCODE=CLOUD_KEY;try{localStorage.setItem('flour_jc_'+USER_EMAIL.toLowerCase(),CLOUD_KEY);}catch(e){}}
-      if(!_codeShown&&AUTH==='ready'&&CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0){
+      var _jcPersisted=false;try{_jcPersisted=!!localStorage.getItem('flour_jc_'+USER_EMAIL.toLowerCase());}catch(e){}
+      if(!_codeShown&&AUTH==='ready'&&CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0&&!_jcPersisted){
         _codeShown=true;
         setTimeout(function(){alert('رمز الربط لربط جوالك الثاني (ينسخ من القائمة):\n\n'+CLOUD_KEY);},800);
       }
@@ -1111,7 +1112,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6.1</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
