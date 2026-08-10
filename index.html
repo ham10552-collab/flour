@@ -35,10 +35,14 @@ header h1{font-size:19px; font-weight:800; margin:0; letter-spacing:.2px}
 .icon-btn{
   background:none; border:none; color:var(--text); cursor:pointer;
   width:42px; height:42px; border-radius:12px; display:flex;
-  align-items:center; justify-content:center;
+  align-items:center; justify-content:center; flex-direction:column; gap:1px;
 }
 .icon-btn:hover{background:rgba(138,90,31,.08)}
 .icon-btn svg{display:block}
+.htx{display:block;font-size:9.5px;font-weight:800;line-height:1.1}
+.search{width:100%;box-sizing:border-box;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:15px;font-family:inherit;margin-bottom:6px}
+.search:focus{outline:none;border-color:var(--primary)}
+.search::placeholder{color:var(--muted)}
 main{max-width:760px; margin:0 auto; padding:14px 14px 110px}
 .hidden{display:none !important}
 
@@ -311,7 +315,7 @@ function normDB(d){
 }
 
 var DB=freshDB();
-var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false,_codeShown=false,REG='',AGF='all';
+var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false,_codeShown=false,REG='',AGF='all',SQ='',JOINCODE='';
 
 function bytesToB64(buf){
   var s='',u8=new Uint8Array(buf);
@@ -397,9 +401,10 @@ function saveNow(){
   }).then(function(ok){
     if(ok){
       _dirty=false;clearBanner();
+      if(CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0&&JOINCODE!==CLOUD_KEY){JOINCODE=CLOUD_KEY;try{localStorage.setItem('flour_jc_'+USER_EMAIL.toLowerCase(),CLOUD_KEY);}catch(e){}}
       if(!_codeShown&&AUTH==='ready'&&CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0){
         _codeShown=true;
-        setTimeout(function(){alert('احفظ رمز الربط هذا (لأي جوال ثانٍ بحسابك):\n\n'+CLOUD_KEY+'\n\nوأيضاً من القائمة: رمز الربط للحساب');},800);
+        setTimeout(function(){alert('رمز الربط لربط جوالك الثاني (ينسخ من القائمة):\n\n'+CLOUD_KEY);},800);
       }
     }
     else{showBanner('السحابة غير متصلة — بياناتك محفوظة محلياً بجوالك حالياً فقط','err');}
@@ -482,11 +487,26 @@ function agentPassesFilter(a){
   if(AGF==='unsettled')return a.settled!=1;
   return true;
 }
+function agentNameOk(a){return !SQ||(a.name||'').indexOf(SQ)>=0;}
+function ensureCode(){
+  if(JOINCODE){alert('رمز الربط (الصقه بالجوال الثاني بشاشة الدخول تحت "عندي رمز ربط"):\n\n'+JOINCODE);return;}
+  if(CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0){JOINCODE=CLOUD_KEY;try{localStorage.setItem('flour_jc_'+USER_EMAIL.toLowerCase(),CLOUD_KEY);}catch(e){}alert('رمز الربط (الصقه بالجوال الثاني بشاشة الدخول تحت "عندي رمز ربط"):\n\n'+CLOUD_KEY);return;}
+  toast('جاري تجهيز رمز الربط…');
+  saveNow().then(function(){
+    if(JOINCODE)alert('رمز الربط (الصقه بالجوال الثاني بشاشة الدخول تحت "عندي رمز ربط"):\n\n'+JOINCODE);
+    else toast('ما صار اتصال بالسحابة حالياً — جرّب مرة أخرى بعد قليل');
+  });
+}
+function copyCode(){
+  if(!JOINCODE){ensureCode();return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(JOINCODE).then(function(){toast('تم نسخ الرمز — الصقه بجوالك الثاني');},function(){alert(JOINCODE);});}
+  else alert(JOINCODE);
+}
 function agentsAllHtml(){
-  var mills=millsForYear(S.year),i,j,h=agentFilterChips();
+  var mills=millsForYear(S.year),i,j,h='<div class="chips"><input class="search" id="agSearch2" value="'+esc(SQ)+'" placeholder="بحث عن وكيل بالاسم…" oninput="SQ=this.value;render();var i=document.getElementById(\'agSearch2\');if(i){i.focus();var v=i.value;i.setSelectionRange(v.length,v.length);}"></div>'+agentFilterChips();
   var shown=0,totS={sacks:0,cost:0,revenue:0,profit:0},sCount=0,uCount=0;
   for(i=0;i<mills.length;i++){
-    var m=mills[i],list=agentsForMill(m.id).filter(agentPassesFilter),rows=txsRowsForYear(S.year),byA={},k;
+    var m=mills[i],list=agentsForMill(m.id).filter(function(x){return agentPassesFilter(x)&&agentNameOk(x);}),rows=txsRowsForYear(S.year),byA={},k;
     for(k=0;k<rows.length;k++){
       if(rows[k].m.id!==m.id)continue;
       var tt=txTotals(rows[k].t),e=byA[rows[k].a.id];
@@ -518,7 +538,7 @@ function agentsAllHtml(){
         +'</div></div>';
     }
   }
-  if(!shown)return agentFilterChips()+emptyState(I.person,'لا يوجد وكلاء بهذه الحالة','غيّر الفلترة أو أضف وكيلاً جديداً');
+  if(!shown)return agentFilterChips()+emptyState(I.person,'لا يوجد وكلاء بهذا البحث أو الفلتر','غيّر البحث أو الفلترة أو أضف وكيلاً جديداً');
   h+='<div class="grand"><div class="g-title">'+I.summarize+'<span>الملخص</span></div>'
     +'<div class="g-row"><div class="g-cell"><div class="g-lbl">الوكلاء</div><div class="g-val">'+shown+' (حاسبتهم '+sCount+' — بعدني '+uCount+')</div></div>'
     +'<div class="g-cell"><div class="g-lbl">الأكياس</div><div class="g-val">'+fmtSacks(totS.sacks)+'</div></div></div>'
@@ -554,7 +574,6 @@ function homeHtml(){
   for(i=0;i<rows.length;i++){var t=txTotals(rows[i].t),e=by[rows[i].m.month];
     e.t.sacks+=t.sacks;e.t.cost+=t.cost;e.t.revenue+=t.revenue;e.t.profit+=t.profit;}
   var h=yearChips(S.year);
-  h+='<div class="chips"><button class="chip" data-act="open-agentsall" data-f="all">الوكلاء — الكل</button><button class="chip" data-act="open-agentsall" data-f="settled">حاسبتهم</button><button class="chip" data-act="open-agentsall" data-f="unsettled">بعدني محاسبهم</button></div>';
   h+='<div class="card banner"><span style="display:flex">'+I.summarize+'</span><div class="b-title">إجمالي سنة '+S.year+'</div><div class="b-sacks">'+fmtSacks(yt.sacks)+'</div>'+profitLabel(yt.profit)+'</div>';
   h+='<div class="grid">';
   for(i=1;i<=12;i++){
@@ -620,11 +639,13 @@ function agentsHtml(){
   var tot=sumTotals(Object.keys(byAgent).map(function(k){return byAgent[k];}));
   var h='<div class="card banner" style="margin-bottom:10px"><span style="display:flex">'+I.store+'</span><div class="b-title">'+esc(mill.name)+'</div></div>';
   h+='<div class="stats">'+stat('الوكلاء',agents.length,I.person)+stat('أكياس المطحنة',fmtSacks(tot.sacks),I.sacks)+'</div>';
-  if(!agents.length){
-    h+=emptyState(I.truck2,'لا يوجد وكلاء في هذه المطحنة','أضف أول وكيل تتعامل معه');
+  h+='<div class="chips"><input class="search" id="agSearch" value="'+esc(SQ)+'" placeholder="بحث عن وكيل بالاسم…" oninput="SQ=this.value;render();var i=document.getElementById(\'agSearch\');if(i){i.focus();var v=i.value;i.setSelectionRange(v.length,v.length);}"></div>'+agentFilterChips();
+  var list=agents.filter(function(x){return agentPassesFilter(x)&&agentNameOk(x);});
+  if(!list.length){
+    h+=emptyState(I.truck2,(agents.length?'لا يوجد وكيل بهذا الاسم أو الفلتر المختار':'لا يوجد وكلاء في هذه المطحنة'),(agents.length?'غيّر نص البحث أو اختر فلتراً آخر':'أضف أول وكيل تتعامل معه'));
   }else{
-    for(i=0;i<agents.length;i++){
-      var a=agents[i],e=byAgent[a.id]||{sacks:0,cost:0,revenue:0,profit:0},tx=latest[a.id]||null;
+    for(i=0;i<list.length;i++){
+      var a=list[i],e=byAgent[a.id]||{sacks:0,cost:0,revenue:0,profit:0},tx=latest[a.id]||null;
       var del=tx?tx.delivered:false;
       h+='<div class="card tile" data-act="open-agent" data-id="'+a.id+'">'
         +'<div class="trow">'
@@ -850,6 +871,7 @@ function bindAuth(){
 
 function startSession(){
   AUTH='ready';
+  try{JOINCODE=localStorage.getItem('flour_jc_'+USER_EMAIL.toLowerCase())||'';}catch(e){}
   var cached=null;
   try{var r=localStorage.getItem(LS_CACHE+'e:'+USER_EMAIL.toLowerCase());if(r)cached=JSON.parse(r);}catch(e){}
   if(!(cached&&Array.isArray(cached.mills))){
@@ -886,7 +908,7 @@ function syncCloud(){
       });
     }
     if(g.st===404){
-      if(DB&&DB.mills&&(DB.mills.length||DB.txs.length||DB.agents.length))saveNow();
+      if(DB&&DB.mills)saveNow();
       else clearBanner();
       return;
     }
@@ -1071,8 +1093,11 @@ function toast(msg){
 var MENU=document.getElementById('menu');
 function buildMenu(){
   MENU.innerHTML=(USER_EMAIL?'<div class="menu-user">'+esc(USER_EMAIL)+'</div>':'')
+    +(JOINCODE?'<div class="menu-user" style="color:var(--primary);font-weight:800">رمز الربط: <b style="direction:ltr;unicode-bidi:embed">'+JOINCODE+'</b></div>':'')
+    +(JOINCODE?'<button data-act="copy-code">نسخ رمز الربط</button>':'')
+    +'<button data-act="show-code">عرض رمز الربط / إنشاؤه</button>'
+    +'<button data-act="open-agentsall">تقرير الوكلاء حسب المحاسبة</button>'
     +'<button data-act="add-year">إضافة سنة جديدة</button>'
-    +'<button data-act="show-code">رمز الربط للحساب</button>'
     +'<button data-act="link-help">كيف أربط جوالاً ثانياً؟</button>'
     +'<button data-act="sync">مزامنة مع السحابة الآن</button>'
     +'<button data-act="switchacc">تبديل الحساب</button>'
@@ -1081,11 +1106,12 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.3</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.4</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
-document.getElementById('reportBtn').innerHTML=I.reportic;
+document.getElementById('menuBtn').innerHTML=I.menu+'<span class="htx">القائمة</span>';
+document.getElementById('reportBtn').innerHTML=I.reportic+'<span class="htx">التقرير</span>';
 document.getElementById('reportBtn').onclick=function(){go('report');};
 document.addEventListener('click',function(ev){
   if(!MENU.classList.contains('hidden')&&!ev.target.closest('#menu'))MENU.classList.add('hidden');
@@ -1175,8 +1201,9 @@ document.addEventListener('click',function(ev){
   else if(act==='year'){S.year=+el.dataset.year;render();}
   else if(act==='add-year'){openYearSheet();}
   else if(act==='sync'){syncNow();}
-  else if(act==='show-code'){if(CLOUD_KEY)alert('رمز ربط جهازك مع السحابة:\n\n'+CLOUD_KEY+'\n\nمن الجوال الثاني: بالصقه في حقل "رمز الربط" بشاشة الدخول بعدين ادخل بنفس البريد وكلمة المرور');else toast('حفظ أول تعديل ثم اطلب الرمز');}
-  else if(act==='link-help'){alert('لربط جوال ثانٍ بنفس الحساب:\n1) من هذا الجوال: القائمة → رمز الربط للحساب\n2) بالجوال الثاني: بشاشة الدخول الصق الرمز بحقل "رمز الربط"\n3) ادخل بنفس البريد وكلمة المرور — وستتجمع بياناتك معاً');}
+  else if(act==='show-code'){ensureCode();}
+  else if(act==='copy-code'){copyCode();}
+  else if(act==='link-help'){alert('لربط جوال ثانٍ بنفس الحساب:\n1) من هذا الجوال: القائمة → رمز الربط (يظهر لك تلقائياً)\n2) بالجوال الثاني: بشاشة الدخول اضغط "عندي رمز ربط من جوال آخر" والصقه\n3) ادخل بنفس البريد وكلمة المرور — وستتجمع بياناتك معاً');}
   else if(act==='open-mill'){go('agents',{millId:id});}
   else if(act==='open-agent'){go('tx',{agentId:id});}
   else if(act==='add-mill'){openMillSheet(null);}
