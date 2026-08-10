@@ -816,6 +816,7 @@ function bindAuth(){
   function finishLogin(em){
     USER_EMAIL=em.toLowerCase();
     saveSession();
+    toast('تم الدخول — أهلاً بعودتك، دفترك جاهز');
     startSession();
   }
   function tryAccount(em,ps,mode){
@@ -1112,7 +1113,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6.1</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.6.2</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
