@@ -1204,7 +1204,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.4</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.5</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1330,6 +1330,9 @@ document.getElementById('backBtn').onclick=goBack;
 document.getElementById('backBtn').innerHTML=I.back;
 
 function boot(){
+  if('serviceWorker' in navigator){
+    try{navigator.serviceWorker.register('./sw.js').catch(function(){});}catch(e){}
+  }
   window.addEventListener('error',function(ev){showBanner('حصل خطأ تقني — صوّر الرسالة وخبّرنا: '+(ev.message||'غير معروف'),'err');});
   window.addEventListener('online',function(){if(AUTH==='ready')syncNow();});
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&AUTH==='ready'){if(_dirty)saveNow();attachSync();}});
