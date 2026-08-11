@@ -1063,7 +1063,7 @@ function syncCloud(){
     }
     if(g.st===404){
       if(DB&&DB.mills)saveNow();
-      else clearBanner();
+      clearBanner();
       return;
     }
     clearBanner();
@@ -1277,7 +1277,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.4</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.5</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
