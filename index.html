@@ -407,6 +407,7 @@ function cacheWrite(){
   }catch(e){}
 }
 function save(){
+  DB._savedAt=Date.now();
   cacheWrite();
   if(AUTH!=='ready')return;
   _dirty=true;
@@ -1031,6 +1032,15 @@ function startSession(){
   render();
   syncCloud();
 }
+function mergeCloud(rd){
+  var lt=+(DB._savedAt||0),rt=+(rd._savedAt||0);
+  if(rt>lt)return 1;
+  if(rt<lt)return -1;
+  var lt2=(DB.txs||[]).length,rt2=(rd.txs||[]).length;
+  if(rt2>lt2)return 1;
+  if(rt2<lt2)return -1;
+  return 0;
+}
 function syncCloud(){
   if(AUTH!=='ready')return;
   clearTimeout(SYNC_WATCH);
@@ -1043,10 +1053,12 @@ function syncCloud(){
     if(g.st===200){
       return deriveKey(USER_EMAIL,PS).then(decDb.bind(null,g.j)).then(function(d){
         if(!d)return;
-        if(JSON.stringify(d)!==JSON.stringify(DB)){DB=normDB(d);cacheWrite();render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
+        if(_dirty)saveNow();
+        var m=mergeCloud(d);
+        if(m===1){DB=normDB(d);cacheWrite();render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
+        else if(m===-1){saveNow();}
         CLOUD_ETAG=g.etag;
         clearBanner();
-        if(_dirty)saveNow();
       });
     }
     if(g.st===404){
@@ -1265,7 +1277,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.3</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.4</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1445,7 +1457,10 @@ function boot(){
       cloudTry(em,PS,'login').then(function(r){
         if(r&&r.st==='ok'&&AUTH==='ready'){
           var rd=normDB(r.d);
-          if((rd.txs||[]).length>(DB.txs||[]).length&&(rd.txs||[]).length>(cached.txs||[]).length){DB=rd;CLOUD_ETAG=r.etag;S.screen='home';render();toast('تم تحديث بياناتك من السحابة');}
+          var m=mergeCloud(rd);
+          if(m===1){DB=rd;CLOUD_ETAG=r.etag;S.screen='home';render();toast('تم تحديث بياناتك من السحابة');}
+          else if(m===-1){saveNow();}
+          else{CLOUD_ETAG=r.etag;}
         }
       });
     }else{
