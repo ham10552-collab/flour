@@ -500,7 +500,6 @@ var S={screen:'home',year:new Date().getFullYear(),month:1,millId:null,agentId:n
 function go(screen,extra){for(var k in extra)S[k]=extra[k];S.screen=screen;render();window.scrollTo(0,0);}
 function goBack(){
   if(S.screen==='month'||S.screen==='report'||S.screen==='agentsall'||S.screen==='notes')go('home');
-  else if(S.screen==='note')go('notes');
   else if(S.screen==='agents'){var m=millById(S.millId);if(m)go('month',{year:m.year,month:m.month});else go('home');}
   else if(S.screen==='tx'){var a=agentById(S.agentId);if(a)go('agents',{millId:a.millId});else go('home');}
 }
@@ -748,29 +747,11 @@ function txHtml(){
   return h;
 }
 
-function notesListHtml(){
-  var mills=DB.mills.slice().sort(function(a,b){return b.year-a.year||b.month-a.month;});
-  if(!mills.length)return emptyState(I.empty,'لا توجد مطاحن','أضف مطحنة من شهر السنة أولاً');
-  var h='';
-  for(var i=0;i<mills.length;i++){
-    var m=mills[i],n=DB.notes.filter(function(x){return x.millId===m.id;});
-    h+='<div class="card tile" data-act="open-note" data-id="'+m.id+'">'
-      +'<div class="trow"><div class="avatar brown">'+I.store+'</div>'
-      +'<div class="grow"><div class="tname">'+esc(m.name)+'</div>'
-      +'<div class="tsub">'+n.length+' ملاحظة'+(n.length===1?'':'ات')+' — شهر '+m.month+' للعام '+m.year+'</div></div>'
-      +'<span class="chipbox" style="flex:none">'+n.length+'</span>'
-      +'</div></div>';
-  }
-  return h;
-}
-function noteDetailHtml(){
-  var mill=millById(S.millId);
-  if(!mill)return emptyState(I.empty,'المطحنة غير موجودة','');
-  var notes=DB.notes.filter(function(x){return x.millId===mill.id;}).sort(function(a,b){return b.id-a.id;});
+function allNotesHtml(){
+  var notes=DB.notes.slice().sort(function(a,b){return b.id-a.id;});
   var tot=0;for(var i=0;i<notes.length;i++)tot+=+notes[i].amount||0;
-  var h='<div class="card banner" style="margin-bottom:10px"><span style="display:flex">'+I.notes+'</span><div class="b-title">'+esc(mill.name)+'</div></div>';
-  h+='<div class="stats">'+stat('الملاحظات',notes.length,I.notes)+stat('مجموع المبالغ',fmtMoney(tot),I.cash)+'</div>';
-  if(!notes.length)return h+emptyState(I.receipt,'لا توجد ملاحظات لهذه المطحنة','اضغط زر «ملاحظة جديدة» بالأسفل');
+  var h='<div class="stats">'+stat('الملاحظات',notes.length,I.notes)+stat('مجموع المبالغ',fmtMoney(tot),I.cash)+'</div>';
+  if(!notes.length)return h+emptyState(I.receipt,'لا توجد ملاحظات','اضغط زر «ملاحظة جديدة» بالأسفل');
   for(i=0;i<notes.length;i++){
     var n=notes[i];
     h+='<div class="card tile" style="cursor:default">'
@@ -804,7 +785,7 @@ function openNoteSheet(existing){
       existing.from=o.from.trim();existing.to=o.to.trim();
       existing.amount=+(o.amount)||0;existing.date=o.date||todayStr();existing.notes=o.notes.trim();
     }else{
-      DB.notes.push({id:newId(),millId:S.millId,from:o.from.trim(),to:o.to.trim(),amount:+(o.amount)||0,date:o.date||todayStr(),notes:o.notes.trim()});
+      DB.notes.push({id:newId(),from:o.from.trim(),to:o.to.trim(),amount:+(o.amount)||0,date:o.date||todayStr(),notes:o.notes.trim()});
     }
     save();render();return true;
   });
@@ -1148,8 +1129,7 @@ function render(){
   else if(S.screen==='month'){back=true;title.textContent='مطاحن شهر '+S.month;body=monthHtml();fab={act:'add-mill',label:'مطحنة جديدة'};}
   else if(S.screen==='agents'){back=true;title.textContent='الوكلاء';body=agentsHtml();fab={act:'add-agent',label:'وكيل جديد'};}
   else if(S.screen==='tx'){back=true;title.textContent='عمليات الوكيل';body=txHtml();fab={act:'add-tx',label:'عملية جديدة'};}
-  else if(S.screen==='notes'){back=true;title.textContent='الملاحظات';body=notesListHtml();}
-  else if(S.screen==='note'){back=true;title.textContent='ملاحظات المطحنة';body=noteDetailHtml();fab={act:'add-note',label:'ملاحظة جديدة'};}
+  else if(S.screen==='notes'){back=true;title.textContent='الملاحظات';body=allNotesHtml();fab={act:'add-note',label:'ملاحظة جديدة'};}
   else {title.textContent='دفتر الطحين';body=homeHtml();}
   bb.classList.toggle('hidden',!back);
   MAIN.innerHTML=body;
@@ -1285,7 +1265,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.1</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1348,7 +1328,6 @@ function delMill(id){
     DB.mills=DB.mills.filter(function(x){return x.id!==id;});
     DB.txs=DB.txs.filter(function(x){var a=agentById(x.agentId);return !a||a.millId!==id;});
     DB.agents=DB.agents.filter(function(x){return x.millId!==id;});
-    DB.notes=DB.notes.filter(function(x){return x.millId!==id;});
     save();render();toast('تم حذف المطحنة');
   });
 }
@@ -1388,7 +1367,6 @@ document.addEventListener('click',function(ev){
   else if(act==='link-help'){alert('لربط جوال ثانٍ بنفس الحساب:\n1) من هذا الجوال: القائمة → رمز الربط (يظهر لك تلقائياً)\n2) بالجوال الثاني: بشاشة الدخول اضغط "عندي رمز ربط من جوال آخر" والصقه\n3) ادخل بنفس البريد وكلمة المرور — وستتجمع بياناتك معاً');}
   else if(act==='open-mill'){go('agents',{millId:id});}
   else if(act==='open-agent'){go('tx',{agentId:id});}
-  else if(act==='open-note'){go('note',{millId:id});}
   else if(act==='add-mill'){openMillSheet(null);}
   else if(act==='add-agent'){openAgentSheet(null);}
   else if(act==='add-tx'){openTxSheet(null);}
