@@ -981,11 +981,11 @@ function bindAuth(){
     var t=setTimeout(function(){btnL.textContent='دخول';showErr(authMsg({err:'timeout'}));},20000);
     cloudTry(c.em,c.ps,'login').then(function(r){
       clearTimeout(t);btnL.textContent='دخول';
-      if(r.st==='ok'){DB=normDB(r.d);CLOUD_ETAG=r.etag;finishLogin(c.em);}
+      if(r.st==='ok'){DB=normDB(r.d);CLOUD_ETAG=r.etag;PS=c.ps;finishLogin(c.em);}
       else if(r.st==='noc'){
         var cached=null;
         try{var lr=localStorage.getItem(LS_CACHE+'e:'+c.em.toLowerCase());if(lr)cached=JSON.parse(lr);}catch(e){}
-        if(cached&&Array.isArray(cached.mills)){DB=normDB(cached);finishLogin(c.em);}
+        if(cached&&Array.isArray(cached.mills)){DB=normDB(cached);PS=c.ps;finishLogin(c.em);}
         else showErr('ما توجد بيانات سحابية بهذا الحساب — إن كان لك بيانات بهذا الجوال اضغط "تسجيل حساب جديد" ليُعاد رفعها، أو الصق رمز الربط من جوالك الأول');
       }
       else if(r.st==='wrong'){PS='';showErr(authMsg({err:'wrong'}));}
@@ -1000,7 +1000,7 @@ function bindAuth(){
     var t=setTimeout(function(){btnS.textContent='تسجيل حساب جديد';showErr(authMsg({err:'timeout'}));},20000);
     cloudTry(c.em,c.ps,'signup').then(function(r){
       clearTimeout(t);btnS.textContent='تسجيل حساب جديد';
-      if(r.st==='noc'){finishLogin(c.em);toast('تم إنشاء حسابك — بياناتك راح تُرفع للسحابة');}
+      if(r.st==='noc'){PS=c.ps;finishLogin(c.em);toast('تم إنشاء حسابك — بياناتك راح تُرفع للسحابة');}
       else if(r.st==='ok'){PS='';showErr(authMsg({err:'taken'}));}
       else if(r.st==='wrong'){PS='';showErr(authMsg({err:'taken'}));}
       else showErr(authMsg({err:'net'}));
@@ -1265,7 +1265,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.2</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.3</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
