@@ -540,11 +540,9 @@ function agentsAllHtml(){
         +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<div class="tname">'+esc(a.name)+'</div>'
         +'<span class="chipbox" style="flex:none">'+I.sacks+' '+fmtSacks(e.sacks)+'</span>'
-        +'<span class="chipbox '+(a.settled==1?'ok':'warn')+'" data-act="toggle-settle" data-id="'+a.id+'">'+(a.settled==1?'حاسبته':'بعدني محاسبه')+'</span>'
-        +'<span class="chipbox" style="flex:none;color:var(--primary)" data-act="edit-agent" data-id="'+a.id+'">تعديل</span>'
+        +'<span class="chipbox '+(a.settled==1?'ok':'warn')+'" style="flex:none">'+(a.settled==1?'حاسبته':'بعدني محاسبه')+'</span>'
         +'</div>'
         +'<div class="tsub">مطحنة '+esc(m.name)+' — شهر '+m.month+' للعام '+m.year+'</div></div>'
-        +'<span class="pill '+(a.settled?'on':'off')+'" data-act="toggle-settle" data-id="'+a.id+'">'+(a.settled?'حسابه وصل':'بعدني محاسبه')+'</span>'
         +'</div>'
         +'<div class="div"></div>'
         +'<div class="info">'
@@ -669,15 +667,12 @@ function agentsHtml(){
         +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap">'
         +'<div class="tname">'+esc(a.name)+'</div>'
         +'<span class="chipbox" style="flex:none">'+I.sacks+' '+fmtSacks(e.sacks)+'</span>'
-        +'<span class="chipbox '+(a.settled?'ok':'warn')+'" style="flex:none" data-act="toggle-settle" data-id="'+a.id+'">'+(a.settled?'حاسبته':'بعدني محاسبه')+'</span>'
-        +'<span class="chipbox" style="flex:none;color:var(--primary)" data-act="edit-agent" data-id="'+a.id+'">تعديل</span>'
+        +'<span class="chipbox '+(a.settled?'ok':'warn')+'" style="flex:none">'+(a.settled?'حاسبته':'بعدني محاسبه')+'</span>'
         +'</div>'
         +(a.phone?'<div class="tsub">'+esc(a.phone)+'</div>':'')
         +'</div>'
-        +'<span class="pill '+(del?'on':'off')+'" data-act="toggle-del" data-id="'+a.id+'">'+I.truck+(del?' التوصيل وصل':' التوصيل ما وصل')+'</span>'
+        +'<span class="pill '+(del?'on':'off')+'">'+I.truck+(del?' التوصيل وصل':' التوصيل ما وصل')+'</span>'
         +profitLabel(e.profit)
-        +'<button class="mini" data-act="edit-agent" data-id="'+a.id+'">'+I.edit+'</button>'
-        +'<button class="mini danger" data-act="del-agent" data-id="'+a.id+'">'+I.del+'</button>'
         +'</div>'
         +'<div class="div"></div>'
         +'<div class="info">'
@@ -706,6 +701,11 @@ function txHtml(){
   var txs=txsForAgent(agent.id);
   var tot=sumTotals(txs.map(txTotals));
   var h='<div class="card banner" style="margin-bottom:10px"><span style="display:flex">'+I.person+'</span><div class="b-title">'+esc(agent.name)+' — '+esc(mill?mill.name:'')+'</div></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
+    +'<button class="mini" data-act="edit-agent" data-id="'+agent.id+'">'+I.edit+' تعديل معلومات الوكيل</button>'
+    +'<button class="mini danger" data-act="del-agent" data-id="'+agent.id+'">'+I.del+' حذف الوكيل</button>'
+    +'<span class="chipbox '+(agent.settled?'ok':'warn')+'" style="flex:none" data-act="toggle-settle" data-id="'+agent.id+'">'+(agent.settled?'حاسبته':'بعدني محاسبه')+'</span>'
+    +'</div>';
   h+='<div class="stats">'+stat('الأكياس',fmtSacks(tot.sacks),I.sacks)+stat('تكلفة الشراء',fmtMoney(tot.cost),I.cart)+'</div>';
   h+='<div class="stats" style="margin-top:0">'+stat('إيراد البيع',fmtMoney(tot.revenue),I.cash)+stat('النتيجة',fmtMoney(tot.profit),I.chart)+'</div>';
   if(!txs.length){
@@ -1204,7 +1204,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.2</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.3</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
