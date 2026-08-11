@@ -494,7 +494,7 @@ function goBack(){
   else if(S.screen==='tx'){var a=agentById(S.agentId);if(a)go('agents',{millId:a.millId});else go('home');}
 }
 function agentFilterChips(){
-  var defs=[['all','كل الوكلاء'],['settled','حاسبتهم'],['unsettled','بعدني محاسبهم']],h='<div class="chips">';
+  var defs=[['all','كل الوكلاء'],['settled','تمت'],['unsettled','ما تمت']],h='<div class="chips">';
   for(var i=0;i<defs.length;i++)h+='<button class="chip'+(AGF===defs[i][0]?' sel':'')+'" data-act="agent-filter" data-f="'+defs[i][0]+'">'+defs[i][1]+'</button>';
   return h+'</div>';
 }
@@ -540,7 +540,7 @@ function agentsAllHtml(){
         +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
         +'<div class="tname">'+esc(a.name)+'</div>'
         +'<span class="chipbox" style="flex:none">'+I.sacks+' '+fmtSacks(e.sacks)+'</span>'
-        +'<span class="chipbox '+(a.settled==1?'ok':'warn')+'" style="flex:none">'+(a.settled==1?'حاسبته':'بعدني محاسبه')+'</span>'
+        +'<span class="chipbox '+(a.settled==1?'ok':'warn')+'" style="flex:none">'+(a.settled==1?'تمت':'ما تمت')+'</span>'
         +'</div>'
         +'<div class="tsub">مطحنة '+esc(m.name)+' — شهر '+m.month+' للعام '+m.year+'</div></div>'
         +'</div>'
@@ -554,7 +554,7 @@ function agentsAllHtml(){
   }
   if(!shown)return agentFilterChips()+emptyState(I.person,'لا يوجد وكلاء بهذا البحث أو الفلتر','غيّر البحث أو الفلترة أو أضف وكيلاً جديداً');
   h+='<div class="grand"><div class="g-title">'+I.summarize+'<span>الملخص</span></div>'
-    +'<div class="g-row"><div class="g-cell"><div class="g-lbl">الوكلاء</div><div class="g-val">'+shown+' (حاسبتهم '+sCount+' — بعدني '+uCount+')</div></div>'
+    +'<div class="g-row"><div class="g-cell"><div class="g-lbl">الوكلاء</div><div class="g-val">'+(shown+' (تمت '+sCount+' — ما تمت '+uCount+')')+'</div></div>'
     +'<div class="g-cell"><div class="g-lbl">الأكياس</div><div class="g-val">'+fmtSacks(totS.sacks)+'</div></div></div>'
     +'<div class="g-row"><div class="g-cell"><div class="g-lbl">تكلفة الشراء</div><div class="g-val" style="color:#fff">'+fmtMoney(totS.cost)+'</div></div>'
     +'<div class="g-cell"><div class="g-lbl">الربح الكلي</div><div class="g-val" style="color:'+(totS.profit>=0?'#7fe08a':'#ff8a80')+'">'+fmtMoney(totS.profit)+'</div></div></div>'
@@ -667,7 +667,7 @@ function agentsHtml(){
         +'<div class="grow"><div style="display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap">'
         +'<div class="tname">'+esc(a.name)+'</div>'
         +'<span class="chipbox" style="flex:none">'+I.sacks+' '+fmtSacks(e.sacks)+'</span>'
-        +'<span class="chipbox '+(a.settled?'ok':'warn')+'" style="flex:none">'+(a.settled?'حاسبته':'بعدني محاسبه')+'</span>'
+        +'<span class="chipbox '+(a.settled?'ok':'warn')+'" style="flex:none">'+(a.settled?'تمت':'ما تمت')+'</span>'
         +'</div>'
         +(a.phone?'<div class="tsub">'+esc(a.phone)+'</div>':'')
         +'</div>'
@@ -704,7 +704,7 @@ function txHtml(){
   h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
     +'<button class="mini" data-act="edit-agent" data-id="'+agent.id+'">'+I.edit+' تعديل معلومات الوكيل</button>'
     +'<button class="mini danger" data-act="del-agent" data-id="'+agent.id+'">'+I.del+' حذف الوكيل</button>'
-    +'<span class="chipbox '+(agent.settled?'ok':'warn')+'" style="flex:none" data-act="toggle-settle" data-id="'+agent.id+'">'+(agent.settled?'حاسبته':'بعدني محاسبه')+'</span>'
+    +'<span class="chipbox '+(agent.settled?'ok':'warn')+'" style="flex:none" data-act="toggle-settle" data-id="'+agent.id+'">'+(agent.settled?'تمت':'ما تمت')+'</span>'
     +'</div>';
   h+='<div class="stats">'+stat('الأكياس',fmtSacks(tot.sacks),I.sacks)+stat('تكلفة الشراء',fmtMoney(tot.cost),I.cart)+'</div>';
   h+='<div class="stats" style="margin-top:0">'+stat('إيراد البيع',fmtMoney(tot.revenue),I.cash)+stat('النتيجة',fmtMoney(tot.profit),I.chart)+'</div>';
@@ -1121,7 +1121,7 @@ function openMillSheet(existing){
 function openAgentSheet(existing){
   var fields=field('اسم الوكيل',textIn('name',existing?existing.name:'','مثال: أبو علي'))
     +field('رقم الهاتف (اختياري)',textIn('phone',existing?existing.phone:'','07xx xxx xxxx'))
-    +'<label class="switch-row" style="margin-top:4px"><span>حاسبته؟ حساب الوكيل وصل</span>'
+    +'<label class="switch-row" style="margin-top:4px"><span>هل تمت محاسبته؟</span>'
     +'<input type="checkbox" name="settled"'+(existing&&existing.settled?' checked':'')+' id="setChk"><span class="track"></span></label>';
   openSheet(existing?'تعديل الوكيل':'وكيل جديد',fields,function(o){
     if(!o.name.trim()){toast('اكتب اسم الوكيل');return false;}
@@ -1204,7 +1204,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.5</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.6</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
