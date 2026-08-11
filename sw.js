@@ -3,8 +3,9 @@ self.addEventListener('activate',function(e){e.waitUntil(clients.claim());});
 self.addEventListener('fetch',function(e){
   var req=e.request;
   if(req.mode==='navigate'){
+    var bust=req.url+(req.url.indexOf('?')>-1?'&':'?')+'_='+Date.now();
     e.respondWith(
-      fetch(req).then(function(r){
+      fetch(bust).then(function(r){
         var cl=r.clone();
         caches.open('flour-v1').then(function(c){c.put(req,cl);});
         return r;
