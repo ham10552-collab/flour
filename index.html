@@ -264,6 +264,7 @@ input[type=date]{direction:ltr; text-align:right}
   <h1 id="title">دفتر الطحين</h1>
   <div id="hdrBtns">
     <button class="icon-btn" id="themeBtn" title="وضع نهاري / ليلي"></button>
+    <button class="icon-btn" id="notesBtn" title="الملاحظات"></button>
     <button class="icon-btn" id="reportBtn"></button>
     <button class="icon-btn" id="menuBtn"></button>
   </div>
@@ -302,7 +303,7 @@ input[type=date]{direction:ltr; text-align:right}
 var LS_CACHE='flour_cache_';
 var MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
-function freshDB(){return {seq:0,currency:'د.ع',mills:[],agents:[],txs:[],years:[]};}
+function freshDB(){return {seq:0,currency:'د.ع',mills:[],agents:[],txs:[],years:[],notes:[]};}
 function normDB(d){
   if(typeof d.seq!=='number')d.seq=0;
   if(typeof d.currency!=='string')d.currency='د.ع';
@@ -310,6 +311,7 @@ function normDB(d){
   if(!Array.isArray(d.agents))d.agents=[];
   if(!Array.isArray(d.txs))d.txs=[];
   if(!Array.isArray(d.years))d.years=[];
+  if(!Array.isArray(d.notes))d.notes=[];
   var i;
   for(i=0;i<d.agents.length;i++){
     if(d.agents[i].delivered===undefined)d.agents[i].delivered=0;
@@ -489,14 +491,16 @@ var I={
   add:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   empty:'<svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l9-7 9 7v11"/><path d="M3 10h18"/><path d="M9 21v-6h6v6"/></svg>',
   truck2:'<svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="14" height="10" rx="1.5"/><path d="M15 8h4l4 4v3h-8z"/><circle cx="6.5" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg>',
-  reportic:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>'
+  reportic:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  notes:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>'
 };
 
 var S={screen:'home',year:new Date().getFullYear(),month:1,millId:null,agentId:null};
 
 function go(screen,extra){for(var k in extra)S[k]=extra[k];S.screen=screen;render();window.scrollTo(0,0);}
 function goBack(){
-  if(S.screen==='month'||S.screen==='report'||S.screen==='agentsall')go('home');
+  if(S.screen==='month'||S.screen==='report'||S.screen==='agentsall'||S.screen==='notes')go('home');
+  else if(S.screen==='note')go('notes');
   else if(S.screen==='agents'){var m=millById(S.millId);if(m)go('month',{year:m.year,month:m.month});else go('home');}
   else if(S.screen==='tx'){var a=agentById(S.agentId);if(a)go('agents',{millId:a.millId});else go('home');}
 }
@@ -744,6 +748,74 @@ function txHtml(){
   return h;
 }
 
+function notesListHtml(){
+  var mills=DB.mills.slice().sort(function(a,b){return b.year-a.year||b.month-a.month;});
+  if(!mills.length)return emptyState(I.empty,'لا توجد مطاحن','أضف مطحنة من شهر السنة أولاً');
+  var h='';
+  for(var i=0;i<mills.length;i++){
+    var m=mills[i],n=DB.notes.filter(function(x){return x.millId===m.id;});
+    h+='<div class="card tile" data-act="open-note" data-id="'+m.id+'">'
+      +'<div class="trow"><div class="avatar brown">'+I.store+'</div>'
+      +'<div class="grow"><div class="tname">'+esc(m.name)+'</div>'
+      +'<div class="tsub">'+n.length+' ملاحظة'+(n.length===1?'':'ات')+' — شهر '+m.month+' للعام '+m.year+'</div></div>'
+      +'<span class="chipbox" style="flex:none">'+n.length+'</span>'
+      +'</div></div>';
+  }
+  return h;
+}
+function noteDetailHtml(){
+  var mill=millById(S.millId);
+  if(!mill)return emptyState(I.empty,'المطحنة غير موجودة','');
+  var notes=DB.notes.filter(function(x){return x.millId===mill.id;}).sort(function(a,b){return b.id-a.id;});
+  var tot=0;for(var i=0;i<notes.length;i++)tot+=+notes[i].amount||0;
+  var h='<div class="card banner" style="margin-bottom:10px"><span style="display:flex">'+I.notes+'</span><div class="b-title">'+esc(mill.name)+'</div></div>';
+  h+='<div class="stats">'+stat('الملاحظات',notes.length,I.notes)+stat('مجموع المبالغ',fmtMoney(tot),I.cash)+'</div>';
+  if(!notes.length)return h+emptyState(I.receipt,'لا توجد ملاحظات لهذه المطحنة','اضغط زر «ملاحظة جديدة» بالأسفل');
+  for(i=0;i<notes.length;i++){
+    var n=notes[i];
+    h+='<div class="card tile" style="cursor:default">'
+      +'<div class="trow">'
+      +'<span style="display:flex;color:#695d4a">'+I.cal+'</span>'
+      +'<span style="font-size:13px;color:#695d4a">'+fmtDate(n.date)+'</span>'
+      +'<span class="chipbox" style="flex:none;font-size:12px;color:var(--primary)" data-act="edit-note" data-id="'+n.id+'">تعديل</span>'
+      +'<div class="grow"></div>'
+      +'<button class="mini" data-act="edit-note" data-id="'+n.id+'">'+I.edit+'</button>'
+      +'<button class="mini danger" data-act="del-note" data-id="'+n.id+'">'+I.del+'</button>'
+      +'</div>'
+      +'<div class="tx-chips">'
+      +'<span class="chipbox">من: '+esc(n.from||'—')+'</span>'
+      +'<span class="chipbox">إلى: '+esc(n.to||'—')+'</span>'
+      +'<span class="chipbox">المبلغ '+fmtMoney(+n.amount||0)+'</span>'
+      +'</div>'
+      +(n.notes?'<div class="tsub" style="margin-top:8px">'+esc(n.notes)+'</div>':'')
+      +'</div>';
+  }
+  return h;
+}
+function openNoteSheet(existing){
+  var fields=field('من (الاسم الأول)',textIn('from',existing?existing.from:'','مثال: أبو علي'))
+    +field('إلى (الاسم الثاني)',textIn('to',existing?existing.to:'','مثال: حاج كريم'))
+    +field('المبلغ',numIn('amount',existing?((+existing.amount)||''):'','مثال: 150000'))
+    +field('التاريخ','<input name="date" type="date" value="'+(existing?existing.date:todayStr())+'">')
+    +field('الملاحظات','<textarea name="notes" placeholder="اكتب هنا ما تريد تسجيله...">'+esc(existing?existing.notes:'')+'</textarea>');
+  openSheet(existing?'تعديل الملاحظة':'ملاحظة جديدة',fields,function(o){
+    if(!o.from.trim()&&!o.to.trim()&&!(o.amount+'').trim()){toast('اكتب على الأقل اسماً أو مبلغاً');return false;}
+    if(existing){
+      existing.from=o.from.trim();existing.to=o.to.trim();
+      existing.amount=+(o.amount)||0;existing.date=o.date||todayStr();existing.notes=o.notes.trim();
+    }else{
+      DB.notes.push({id:newId(),millId:S.millId,from:o.from.trim(),to:o.to.trim(),amount:+(o.amount)||0,date:o.date||todayStr(),notes:o.notes.trim()});
+    }
+    save();render();return true;
+  });
+}
+function delNote(id){
+  var n=DB.notes.find(function(x){return x.id===id;});if(!n)return;
+  confirmBox('حذف الملاحظة','سيتم حذف هذه الملاحظة نهائياً',function(){
+    DB.notes=DB.notes.filter(function(x){return x.id!==id;});
+    save();render();toast('تم حذف الملاحظة');
+  });
+}
 function reportHtml(){
   var rows=txsRowsForYear(S.year);
   var mills=millsForYear(S.year);
@@ -1076,6 +1148,8 @@ function render(){
   else if(S.screen==='month'){back=true;title.textContent='مطاحن شهر '+S.month;body=monthHtml();fab={act:'add-mill',label:'مطحنة جديدة'};}
   else if(S.screen==='agents'){back=true;title.textContent='الوكلاء';body=agentsHtml();fab={act:'add-agent',label:'وكيل جديد'};}
   else if(S.screen==='tx'){back=true;title.textContent='عمليات الوكيل';body=txHtml();fab={act:'add-tx',label:'عملية جديدة'};}
+  else if(S.screen==='notes'){back=true;title.textContent='الملاحظات';body=notesListHtml();}
+  else if(S.screen==='note'){back=true;title.textContent='ملاحظات المطحنة';body=noteDetailHtml();fab={act:'add-note',label:'ملاحظة جديدة'};}
   else {title.textContent='دفتر الطحين';body=homeHtml();}
   bb.classList.toggle('hidden',!back);
   MAIN.innerHTML=body;
@@ -1211,11 +1285,13 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.8.1</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
 document.getElementById('menuBtn').innerHTML=I.menu+'<span class="htx">القائمة</span>';
+document.getElementById('notesBtn').innerHTML=I.notes+'<span class="htx">ملاحظات</span>';
+document.getElementById('notesBtn').onclick=function(){go('notes');};
 document.getElementById('reportBtn').innerHTML=I.reportic+'<span class="htx">التقرير</span>';
 document.getElementById('reportBtn').onclick=function(){go('report');};
 document.addEventListener('click',function(ev){
@@ -1272,6 +1348,7 @@ function delMill(id){
     DB.mills=DB.mills.filter(function(x){return x.id!==id;});
     DB.txs=DB.txs.filter(function(x){var a=agentById(x.agentId);return !a||a.millId!==id;});
     DB.agents=DB.agents.filter(function(x){return x.millId!==id;});
+    DB.notes=DB.notes.filter(function(x){return x.millId!==id;});
     save();render();toast('تم حذف المطحنة');
   });
 }
@@ -1311,15 +1388,19 @@ document.addEventListener('click',function(ev){
   else if(act==='link-help'){alert('لربط جوال ثانٍ بنفس الحساب:\n1) من هذا الجوال: القائمة → رمز الربط (يظهر لك تلقائياً)\n2) بالجوال الثاني: بشاشة الدخول اضغط "عندي رمز ربط من جوال آخر" والصقه\n3) ادخل بنفس البريد وكلمة المرور — وستتجمع بياناتك معاً');}
   else if(act==='open-mill'){go('agents',{millId:id});}
   else if(act==='open-agent'){go('tx',{agentId:id});}
+  else if(act==='open-note'){go('note',{millId:id});}
   else if(act==='add-mill'){openMillSheet(null);}
   else if(act==='add-agent'){openAgentSheet(null);}
   else if(act==='add-tx'){openTxSheet(null);}
+  else if(act==='add-note'){openNoteSheet(null);}
   else if(act==='edit-mill'){openMillSheet(millById(id));}
   else if(act==='edit-agent'){openAgentSheet(agentById(id));}
   else if(act==='edit-tx'){openTxSheet(DB.txs.find(function(x){return x.id===id;}));}
+  else if(act==='edit-note'){openNoteSheet(DB.notes.find(function(x){return x.id===id;}));}
   else if(act==='del-mill'){delMill(id);}
   else if(act==='del-agent'){delAgent(id);}
   else if(act==='del-tx'){delTx(id);}
+  else if(act==='del-note'){delNote(id);}
   else if(act==='toggle-del'){toggleDelivered(id);}
   else if(act==='toggle-tx-del'){var t2=DB.txs.find(function(x){return x.id===id;});if(t2){t2.delivered=t2.delivered?0:1;save();render();}}
   else if(act==='toggle-paid'){var tt=DB.txs.find(function(x){return x.id===id;});if(tt){tt.paid=tt.paid?0:1;save();render();}}
