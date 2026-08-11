@@ -671,7 +671,7 @@ function agentsHtml(){
         +'</div>'
         +(a.phone?'<div class="tsub">'+esc(a.phone)+'</div>':'')
         +'</div>'
-        +'<span class="pill '+(del?'on':'off')+'">'+I.truck+(del?' التوصيل وصل':' التوصيل ما وصل')+'</span>'
+        +'<span class="pill '+(del?'on':'off')+'">'+I.truck+(del?' الكروة وصلت':' الكروة ما وصلت')+'</span>'
         +profitLabel(e.profit)
         +'</div>'
         +'<div class="div"></div>'
@@ -726,7 +726,7 @@ function txHtml(){
         +'<span class="chipbox">'+I.sacks+' '+fmtSacks(t.sacks)+'</span>'
         +'<span class="chipbox">'+I.cart+' شراء '+fmtMoney(t.buy)+'</span>'
         +'<span class="chipbox">'+I.cash+' بيع '+fmtMoney(t.sell)+'</span>'
-        +'<span class="chipbox '+(t.delivered?'gold':'silver')+'" data-act="toggle-tx-del" data-id="'+t.id+'">'+(t.delivered?'التوصيل وصل ✓':'التوصيل ما وصل')+'</span>'
+        +'<span class="chipbox '+(t.delivered?'gold':'silver')+'" data-act="toggle-tx-del" data-id="'+t.id+'">'+(t.delivered?'الكروة وصلت ✓':'الكروة ما وصلت')+'</span>'
         +'<span class="chipbox '+(t.paid?'ok':'warn')+'" data-act="toggle-paid" data-id="'+t.id+'">'+(t.paid?'فلوس شراء الأكياس مدفوعة ✓':'فلوس الشراء ما مدفوعة')+'</span>'
         +'</div>'
         +(t.notes?'<div class="tsub" style="margin-top:8px">'+esc(t.notes)+'</div>':'')
@@ -1138,7 +1138,7 @@ function openTxSheet(existing){
     +field('سعر شراء الكيس',numIn('buy',t?_dropZeros(t.buy):'','مثال: 150000'))
     +field('سعر بيع الكيس',numIn('sell',t?_dropZeros(t.sell):'','مثال: 155000'))
     +field('ملاحظات (اختياري)','<textarea name="notes" placeholder="مثال: نوع الطحين، الشحنة...">'+esc(t?t.notes:'')+'</textarea>')
-    +'<label class="switch-row" style="margin-top:4px"><span>هل وصلت شحنة التوصيل؟</span>'
+    +'<label class="switch-row" style="margin-top:4px"><span>هل وصلت الكروة؟</span>'
     +'<input type="checkbox" name="delivered"'+(t&&t.delivered?' checked':'')+' id="delChk"><span class="track"></span></label>'
     +'<label class="switch-row" style="margin-top:4px"><span>دفعت فلوس شراء الأكياس؟</span>'
     +'<input type="checkbox" name="paid"'+(t&&t.paid?' checked':'')+' id="paidChk"><span class="track"></span></label>';
@@ -1204,7 +1204,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.3</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.7.4</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
