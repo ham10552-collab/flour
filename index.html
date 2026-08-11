@@ -1064,7 +1064,7 @@ function render(){
   var oldFab=document.querySelector('.fab');if(oldFab)oldFab.remove();
   if(AUTH!=='ready'){
     title.textContent='دفتر الطحين';
-    bb.classList.add('hidden');hb.classList.add('hidden');MENU.classList.add('hidden');
+    bb.classList.add('hidden');MENU.classList.add('hidden');
     MAIN.innerHTML=loginHtml();
     bindAuth();
     return;
@@ -1211,7 +1211,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.8</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.8.1</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
