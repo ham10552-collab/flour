@@ -1295,7 +1295,8 @@ function buildMenu(){
     +(SYNCD?'<div class="menu-user" style="'+(SYNCD==='ok'?'color:var(--green)':'color:var(--red)')+'">'+(SYNCD==='ok'?'السحابة: متصلة ✓'+(SYNCD_T?' — آخر مزامنة قبل '+relTime(SYNCD_T):''):'السحابة: غير متصلة حالياً — نعيد المحاولة تلقائياً')+'</div>':'')
     +(JOINCODE?'<div class="menu-user" style="color:var(--primary);font-weight:800">رمز الربط: <b style="direction:ltr;unicode-bidi:embed">'+JOINCODE+'</b></div>':'')
     +(JOINCODE?'<button data-act="copy-code">نسخ رمز الربط</button>':'')
-    +'<button data-act="show-code">عرض رمز الربط / إنشاؤه</button>'
+    +'<button data-act="show-code">رمز الربط بين جوالين</button>'
+    +'<button data-act="share">إرسال نسخة بياناتي لجوال آخر</button>'
     +'<button data-act="open-agentsall">تقرير الوكلاء حسب المحاسبة</button>'
     +'<button data-act="add-year">إضافة سنة جديدة</button>'
     +'<button data-act="link-help">كيف أربط جوالاً ثانياً؟</button>'
@@ -1306,7 +1307,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v5.0</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v5.1</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1335,6 +1336,24 @@ function exportBackup(){
   a.download='دفتر-الطحين-'+todayStr()+'.json';
   document.body.appendChild(a);a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},100);
+}
+function shareBackup(){
+  MENU.classList.add('hidden');
+  var blob=new Blob([JSON.stringify(DB,null,1)],{type:'application/json'});
+  var f=new File([blob],'دفتر-الطحين-'+todayStr()+'.json',{type:'application/json'});
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){
+    navigator.share({files:[f],title:'دفتر الطحين',text:'نسخة احتياطية من بياناتي — استوردها في التطبيق من القائمة (استيراد نسخة)'}).then(function(){
+      toast('تمت المشاركة — بالجهاز الآخر: افتح التطبيق ثم القائمة → استيراد نسخة');
+    },function(){});
+    return;
+  }
+  if(navigator.share){
+    exportBackup();
+    toast('اختر التطبيق الذي تريد (واتساب/أيميل/أخرى) ثم بالجهاز الآخر استورد الملف');
+    return;
+  }
+  exportBackup();
+  toast('تم تنزيل الملف — أرسله (واتساب/أيميل) للجهاز الآخر ثم استورد من القائمة');
 }
 var FILE_IN=document.createElement('input');
 FILE_IN.type='file';
@@ -1405,7 +1424,7 @@ document.addEventListener('click',function(ev){
   else if(act==='sync'){syncNow();}
   else if(act==='show-code'){ensureCode();}
   else if(act==='copy-code'){copyCode();}
-  else if(act==='link-help'){alert('لربط جوال ثانٍ بنفس الحساب:\n1) من هذا الجوال: القائمة → رمز الربط (يظهر لك تلقائياً)\n2) بالجوال الثاني: بشاشة الدخول اضغط "عندي رمز ربط من جوال آخر" والصقه\n3) ادخل بنفس البريد وكلمة المرور — وستتجمع بياناتك معاً');}
+  else if(act==='link-help'){alert('لربط جوال ثانٍ بنفس البيانات — طريقتان:\n\n① الأضمن دائماً: من هذا الجوال القائمة → «إرسال نسخة بياناتي لجوال آخر» — ستشارك ملفاً عبر واتساب/أيميل... ثم بالجوال الثاني: افتح التطبيق → القائمة → «استيراد نسخة» واختر الملف.\n\n② تلقائياً (يحتاج إنترنت): بجوالك الثاني ادخل نفس البريد وكلمة المرور بشاشة الدخول — البيانات ستتوحد مع الوقت. وإن لم تتوحد استخدم الطريقة ①.');}
   else if(act==='open-mill'){go('agents',{millId:id});}
   else if(act==='open-agent'){go('tx',{agentId:id});}
   else if(act==='add-mill'){openMillSheet(null);}
@@ -1430,6 +1449,7 @@ document.addEventListener('click',function(ev){
   else if(act==='switchacc'){MENU.classList.add('hidden');endSession();}
   else if(act==='currency'){openCurrency();}
   else if(act==='export'){exportBackup();}
+  else if(act==='share'){shareBackup();}
   else if(act==='import'){MENU.classList.add('hidden');FILE_IN.click();}
   else if(act==='wipe'){wipeAll();}
 });
