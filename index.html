@@ -434,10 +434,10 @@ function saveNow(){
       var _jcPersisted=false;try{_jcPersisted=!!localStorage.getItem('flour_jc_'+USER_EMAIL.toLowerCase());}catch(e){}
       if(!_codeShown&&AUTH==='ready'&&CLOUD_KEY&&!_jcPersisted){
         _codeShown=true;
-        setTimeout(function(){showCodeBox();},600);
+        
       }
     }
-    else{showBanner('لا يوجد اتصال بالسحابة الآن — بياناتك محفوظة بجوالك، وسنعيد المحاولة تلقائياً','err');SYNCD='down';}
+    else{SYNCD='down';}
   });
 }
 function newId(){return ++DB.seq;}
@@ -1023,7 +1023,7 @@ function bindAuth(){
     var t=setTimeout(function(){btnS.textContent='تسجيل حساب جديد';showErr(authMsg({err:'timeout'}));},20000);
     cloudTry(c.em,c.ps,'signup').then(function(r){
       clearTimeout(t);btnS.textContent='تسجيل حساب جديد';
-      if(r.st==='noc'){PS=c.ps;finishLogin(c.em);toast('تم إنشاء حسابك — بياناتك راح تُرفع للسحابة');}
+      if(r.st==='noc'){PS=c.ps;finishLogin(c.em);}
       else if(r.st==='ok'){PS='';showErr(authMsg({err:'taken'}));}
       else if(r.st==='wrong'){PS='';showErr(authMsg({err:'taken'}));}
       else showErr(authMsg({err:'net'}));
@@ -1068,7 +1068,7 @@ function syncCloud(){
   clearTimeout(SYNC_WATCH);
   SYNC_WATCH=setTimeout(function(){
     clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
-    showBanner('جاري الاتصال بالسحابة… إن استمرت المشكلة تأكد من النت','err');
+    
   },8000);
   cloudGet().then(function(g){
     clearTimeout(SYNC_WATCH);SYNC_WATCH=null;
@@ -1078,7 +1078,7 @@ function syncCloud(){
         SYNCD='ok';SYNCD_T=Date.now();
         if(_dirty)saveNow();
         var m=mergeCloud(d);
-        if(m===1){DB=normDB(d);cacheWrite();render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
+        if(m===1){DB=normDB(d);cacheWrite();render();}
         else if(m===-1){saveNow();}
         CLOUD_ETAG=g.etag;
         clearBanner();
@@ -1092,22 +1092,11 @@ function syncCloud(){
     }
     SYNCD='down';
     clearBanner();
-    clearBanner();
-    showBanner('لا يوجد اتصال بالسحابة الآن — بياناتك محفوظة بجوالك، وسنعيد المحاولة تلقائياً','err');
   });
-}
-function attachSync(){
-  clearTimeout(CLOUD_POLL);
-  CLOUD_POLL=setTimeout(function(){
-    if(AUTH!=='ready')return;
-    syncCloud();
-    attachSync();
-  },SYNCD==='down'?5000:15000);
 }
 function syncNow(){
   MENU.classList.add('hidden');
-  saveNow().then(function(){syncCloud();attachSync();});
-  toast('تم إرسال طلب المزامنة');
+  saveNow().then(function(){syncCloud();});
 }
 function showBanner(msg,cls){
   var b=document.getElementById('banner');
@@ -1294,7 +1283,6 @@ function relTime(t){
 var MENU=document.getElementById('menu');
 function buildMenu(){
   MENU.innerHTML=(USER_EMAIL?'<div class="menu-user">'+esc(USER_EMAIL)+'</div>':'')
-    +(SYNCD?'<div class="menu-user" style="'+(SYNCD==='ok'?'color:var(--green)':'color:var(--red)')+'">'+(SYNCD==='ok'?'السحابة: متصلة ✓'+(SYNCD_T?' — آخر مزامنة قبل '+relTime(SYNCD_T):''):'السحابة: غير متصلة حالياً — نعيد المحاولة تلقائياً')+'</div>':'')
     +(JOINCODE?'<div class="menu-user" style="color:var(--primary);font-weight:800">رمز الربط: <b style="direction:ltr;unicode-bidi:embed">'+JOINCODE+'</b></div>':'')
     +(JOINCODE?'<button data-act="copy-code">نسخ رمز الربط</button>':'')
     +'<button data-act="show-code">رمز الربط بين جوالين</button>'
@@ -1309,7 +1297,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v5.2</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v5.3</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
@@ -1483,7 +1471,7 @@ function boot(){
   }
   window.addEventListener('error',function(ev){showBanner('حصل خطأ تقني — صوّر الرسالة وخبّرنا: '+(ev.message||'غير معروف'),'err');});
   window.addEventListener('online',function(){if(AUTH==='ready')syncNow();});
-  document.addEventListener('visibilitychange',function(){if(!document.hidden&&AUTH==='ready'){if(_dirty)saveNow();attachSync();}});
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&AUTH==='ready'){if(_dirty)saveNow();syncCloud();}});
   setInterval(function(){if(AUTH==='ready'&&_dirty)saveNow();},15000);
   render();
   var ss=readSS();
@@ -1509,7 +1497,7 @@ function boot(){
         if(r&&r.st==='ok'&&AUTH==='ready'){
           var rd=normDB(r.d);
           var m=mergeCloud(rd);
-          if(m===1){DB=rd;CLOUD_ETAG=r.etag;S.screen='home';render();toast('تم تحديث بياناتك من السحابة');}
+          if(m===1){DB=rd;CLOUD_ETAG=r.etag;S.screen='home';render();}
           else if(m===-1){saveNow();}
           else{CLOUD_ETAG=r.etag;}
         }
