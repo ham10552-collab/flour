@@ -305,6 +305,8 @@ var MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يو
 
 function freshDB(){return {seq:0,currency:'د.ع',mills:[],agents:[],txs:[],years:[],notes:[]};}
 function normDB(d){
+  if(!d||typeof d!=='object')d={};
+  delete d._ss;delete d._ck;
   if(typeof d.seq!=='number')d.seq=0;
   if(typeof d.currency!=='string')d.currency='د.ع';
   if(!Array.isArray(d.mills))d.mills=[];
@@ -1307,7 +1309,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v5.1</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v5.2</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
