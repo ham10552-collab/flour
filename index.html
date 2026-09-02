@@ -325,7 +325,7 @@ function normDB(d){
 }
 
 var DB=freshDB();
-var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false,_codeShown=false,REG='',AGF='all',SQ='',JOINCODE='';
+var AUTH='boot',UID=null,USER_EMAIL='',PS='',SAVE_TIMER=null,SYNC_WATCH=null,CLOUD_POLL=null,CLOUD_KEY=null,CLOUD_ETAG=null,_dirty=false,_codeShown=false,REG='',AGF='all',SQ='',JOINCODE='',SYNCD=null,SYNCD_T=0;
 
 function bytesToB64(buf){
   var s='',u8=new Uint8Array(buf);
@@ -375,7 +375,7 @@ function cloudCreate(p){
       return false;
     }).catch(function(){return false;}),15000);
 }
-function cloudPut(p){
+function cloudPut(p,isRetry){
   if(!CLOUD_KEY)return cloudCreate(p);
   var h={'Content-Type':'application/json'};
   if(CLOUD_ETAG)h['If-Match']=CLOUD_ETAG;
@@ -384,12 +384,12 @@ function cloudPut(p){
       if(r.status===200||r.status===201){CLOUD_ETAG=r.headers.get('ETag');return true;}
       if(r.status===412){
         return cloudGet().then(function(g){
-          if(g.st===200&&g.etag){CLOUD_ETAG=g.etag;return cloudPut(p);}
-          if(g.st===404)return cloudCreate(p);
+          if(g.st===200&&g.etag){CLOUD_ETAG=g.etag;return cloudPut(p,true);}
+          if(g.st===404){CLOUD_ETAG=null;return cloudPut(p,true);}
           return false;
         });
       }
-      if(r.status===404)return cloudCreate(p);
+      if(r.status===404){if(!isRetry){CLOUD_ETAG=null;return cloudPut(p,true);}return cloudCreate(p);}
       return false;
     }).catch(function(){return false;}),15000);
 }
@@ -403,6 +403,7 @@ function cacheWrite(){
     }
     for(var key in DB)d[key]=DB[key];
     if(ss)d._ss=ss;
+    if(CLOUD_KEY)d._ck=CLOUD_KEY;
     localStorage.setItem(k,JSON.stringify(d));
   }catch(e){}
 }
@@ -425,15 +426,16 @@ function saveNow(){
     return CLOUD_KEY?cloudPut(p):cloudCreate(p);
   }).then(function(ok){
     if(ok){
-      _dirty=false;clearBanner();
-      if(CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0&&JOINCODE!==CLOUD_KEY){JOINCODE=CLOUD_KEY;try{localStorage.setItem('flour_jc_'+USER_EMAIL.toLowerCase(),CLOUD_KEY);}catch(e){}}
+      _dirty=false;clearBanner();SYNCD='ok';SYNCD_T=Date.now();
+      if(CLOUD_KEY){try{localStorage.setItem('flour_key_'+USER_EMAIL.toLowerCase(),CLOUD_KEY);}catch(e){}}
+      if(CLOUD_KEY&&JOINCODE!==CLOUD_KEY){JOINCODE=CLOUD_KEY;try{localStorage.setItem('flour_jc_'+USER_EMAIL.toLowerCase(),CLOUD_KEY);}catch(e){}}
       var _jcPersisted=false;try{_jcPersisted=!!localStorage.getItem('flour_jc_'+USER_EMAIL.toLowerCase());}catch(e){}
-      if(!_codeShown&&AUTH==='ready'&&CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0&&!_jcPersisted){
+      if(!_codeShown&&AUTH==='ready'&&CLOUD_KEY&&!_jcPersisted){
         _codeShown=true;
-        setTimeout(function(){alert('رمز الربط لربط جوالك الثاني (ينسخ من القائمة):\n\n'+CLOUD_KEY);},800);
+        setTimeout(function(){showCodeBox();},600);
       }
     }
-    else{showBanner('لا يوجد اتصال بالسحابة الآن — بياناتك محفوظة بجوالك، وسنعيد المحاولة تلقائياً','err');}
+    else{showBanner('لا يوجد اتصال بالسحابة الآن — بياناتك محفوظة بجوالك، وسنعيد المحاولة تلقائياً','err');SYNCD='down';}
   });
 }
 function newId(){return ++DB.seq;}
@@ -515,19 +517,36 @@ function agentPassesFilter(a){
   return true;
 }
 function agentNameOk(a){return !SQ||(a.name||'').indexOf(SQ)>=0;}
+function showCodeBox(){
+  var c=JOINCODE||CLOUD_KEY||'';
+  if(!c){ensureCode();return;}
+  if(!JOINCODE&&CLOUD_KEY){JOINCODE=CLOUD_KEY;try{localStorage.setItem('flour_jc_'+USER_EMAIL.toLowerCase(),JOINCODE);}catch(e){}}
+  var f=document.getElementById('sheetForm');
+  document.getElementById('sheetTitle').textContent='رمز الربط — لجهازك الثاني';
+  f.innerHTML='<div style="font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.7">بجهازك الثاني: اضغط «عندي رمز ربط من جوال آخر» وألصق الرمز — أو أدخل نفس البريد وكلمة المرور مباشرة وستتجمع بياناتك تلقائياً.</div>'
+    +'<input id="codeBox" readonly value="'+esc(c)+'" style="text-align:center;direction:ltr;unicode-bidi:embed;letter-spacing:2px;font-size:14px;font-family:inherit">'
+    +'<button class="btn primary" id="codeCopyBtn" type="button" style="width:100%;margin-top:10px">نسخ الرمز</button>'
+    +'<button class="btn" id="codeCloseBtn" type="button" style="width:100%;margin-top:6px">إغلاق</button>';
+  var sw=document.getElementById('sheetWrap');
+  sw.classList.remove('hidden');
+  document.getElementById('codeCopyBtn').onclick=function(){copyText(c);};
+  document.getElementById('codeCloseBtn').onclick=function(){closeSheet();};
+  setTimeout(function(){try{var b=document.getElementById('codeBox');b.focus();b.select();}catch(e){}},150);
+}
+function copyText(t){
+  function ok(){toast('✅ تم نسخ الرمز — الصقه بجهازك الثاني');}
+  function fb(){try{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();var r=document.execCommand('copy');ta.remove();if(r){ok();return true;}}catch(e){}return false;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,function(){if(!fb())toast('اضغط مطولاً على الرمز ثم اختر نسخ');});}
+  else if(!fb()){toast('اضغط مطولاً على الرمز ثم اختر نسخ');}
+}
 function ensureCode(){
-  if(JOINCODE){alert('رمز الربط (الصقه بالجوال الثاني بشاشة الدخول تحت "عندي رمز ربط"):\n\n'+JOINCODE);return;}
-  if(CLOUD_KEY&&CLOUD_KEY.indexOf('-')>=0){JOINCODE=CLOUD_KEY;try{localStorage.setItem('flour_jc_'+USER_EMAIL.toLowerCase(),CLOUD_KEY);}catch(e){}alert('رمز الربط (الصقه بالجوال الثاني بشاشة الدخول تحت "عندي رمز ربط"):\n\n'+CLOUD_KEY);return;}
+  if(JOINCODE||CLOUD_KEY){showCodeBox();return;}
   toast('جاري تجهيز رمز الربط…');
-  saveNow().then(function(){
-    if(JOINCODE)alert('رمز الربط (الصقه بالجوال الثاني بشاشة الدخول تحت "عندي رمز ربط"):\n\n'+JOINCODE);
-    else toast('ما صار اتصال بالسحابة حالياً — جرّب مرة أخرى بعد قليل');
-  });
+  saveNow().then(function(){setTimeout(function(){if(CLOUD_KEY)showCodeBox();else toast('لم يصلنا اتصال بالسحابة حالياً — أعد المحاولة بعد قليل');},400);});
 }
 function copyCode(){
-  if(!JOINCODE){ensureCode();return;}
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(JOINCODE).then(function(){toast('تم نسخ الرمز — الصقه بجوالك الثاني');},function(){alert(JOINCODE);});}
-  else alert(JOINCODE);
+  if(JOINCODE||CLOUD_KEY){copyText(JOINCODE||CLOUD_KEY);return;}
+  ensureCode();
 }
 function agentsAllHtml(){
   var mills=millsForYear(S.year),i,j,h='<div class="chips"><input class="search" id="agSearch2" value="'+esc(SQ)+'" placeholder="بحث عن وكيل بالاسم…" oninput="SQ=this.value;render();var i=document.getElementById(\'agSearch2\');if(i){i.focus();var v=i.value;i.setSelectionRange(v.length,v.length);}"></div>'+agentFilterChips();
@@ -897,7 +916,8 @@ function finishLogin(em){
 function cloudTry(em,ps,mode){
   var codeEl=document.getElementById('authCode');
   REG=codeEl?(codeEl.value||'').trim():'';
-  return (REG?Promise.resolve(REG):blobId(em)).then(function(id){
+  var sk=null;try{sk=localStorage.getItem('flour_key_'+em.toLowerCase().trim());}catch(e){}
+  return (REG?Promise.resolve(REG):sk?Promise.resolve(sk):blobId(em)).then(function(id){
     CLOUD_KEY=id;
     return cloudGet();
   }).then(function(g){
@@ -1053,6 +1073,7 @@ function syncCloud(){
     if(g.st===200){
       return deriveKey(USER_EMAIL,PS).then(decDb.bind(null,g.j)).then(function(d){
         if(!d)return;
+        SYNCD='ok';SYNCD_T=Date.now();
         if(_dirty)saveNow();
         var m=mergeCloud(d);
         if(m===1){DB=normDB(d);cacheWrite();render();toast('تم تحديث البيانات من الأجهزة الأخرى');}
@@ -1063,9 +1084,12 @@ function syncCloud(){
     }
     if(g.st===404){
       if(DB&&DB.mills)saveNow();
+      SYNCD='ok';SYNCD_T=Date.now();
       clearBanner();
       return;
     }
+    SYNCD='down';
+    clearBanner();
     clearBanner();
     showBanner('لا يوجد اتصال بالسحابة الآن — بياناتك محفوظة بجوالك، وسنعيد المحاولة تلقائياً','err');
   });
@@ -1076,7 +1100,7 @@ function attachSync(){
     if(AUTH!=='ready')return;
     syncCloud();
     attachSync();
-  },15000);
+  },SYNCD==='down'?5000:15000);
 }
 function syncNow(){
   MENU.classList.add('hidden');
@@ -1261,9 +1285,14 @@ function toast(msg){
   TOAST._h=setTimeout(function(){TOAST.classList.remove('show');},2500);
 }
 
+function relTime(t){
+  var s=Math.floor((Date.now()-t)/1000),m=Math.floor(s/60),h=Math.floor(m/60);
+  return h>0?(h+' ساعة'):(m>0?(m+' دقيقة'):'الآن');
+}
 var MENU=document.getElementById('menu');
 function buildMenu(){
   MENU.innerHTML=(USER_EMAIL?'<div class="menu-user">'+esc(USER_EMAIL)+'</div>':'')
+    +(SYNCD?'<div class="menu-user" style="'+(SYNCD==='ok'?'color:var(--green)':'color:var(--red)')+'">'+(SYNCD==='ok'?'السحابة: متصلة ✓'+(SYNCD_T?' — آخر مزامنة قبل '+relTime(SYNCD_T):''):'السحابة: غير متصلة حالياً — نعيد المحاولة تلقائياً')+'</div>':'')
     +(JOINCODE?'<div class="menu-user" style="color:var(--primary);font-weight:800">رمز الربط: <b style="direction:ltr;unicode-bidi:embed">'+JOINCODE+'</b></div>':'')
     +(JOINCODE?'<button data-act="copy-code">نسخ رمز الربط</button>':'')
     +'<button data-act="show-code">عرض رمز الربط / إنشاؤه</button>'
@@ -1277,7 +1306,7 @@ function buildMenu(){
     +'<button data-act="export">تصدير نسخة احتياطية</button>'
     +'<button data-act="import">استيراد نسخة</button>'
     +'<button data-act="wipe">مسح كل البيانات</button>'
-    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v4.9.5</div>';
+    +'<div class="menu-user" style="border-top:1px solid var(--line);padding-top:7px;margin-top:4px">الإصدار v5.0</div>';
 }
 buildMenu();
 document.getElementById('menuBtn').onclick=function(ev){ev.stopPropagation();buildMenu();MENU.classList.toggle('hidden');};
